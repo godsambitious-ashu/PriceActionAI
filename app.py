@@ -1,0 +1,35 @@
+# app.py
+from flask import Flask, request, render_template
+from stock_data.data_fetcher import DataFetcher
+from stock_data.plotter import Plotter
+import logging
+
+app = Flask(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        stock_code = request.form['stock_code']
+        interval = request.form['interval']
+        logging.debug(f"Form submitted: {stock_code} with interval {interval}")
+        
+        try:
+            stock_data = DataFetcher.fetch_stock_data(stock_code, interval)
+            logging.debug("Data fetched successfully")
+            
+            chart = Plotter.create_candlestick_chart(stock_data, stock_code)
+            logging.debug("Chart created successfully")
+            
+            demand_zones = Plotter.identify_demand_zones(stock_data)
+            logging.debug(f"Demand zones identified: {demand_zones}")
+            
+            return render_template('index.html', chart=chart, demand_zones=demand_zones)
+        except Exception as e:
+            logging.error(f"Error processing request: {e}")
+            return render_template('index.html', chart=None, error=str(e))
+    
+    return render_template('index.html', chart=None)
+
+if __name__ == '__main__':
+    app.run(debug=True)
