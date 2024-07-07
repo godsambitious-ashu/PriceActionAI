@@ -1,14 +1,13 @@
-<!-- templates/index.html -->
+<!-- index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Stock Candlestick Chart</title>
+    <title>Stock Chart</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-    <h1>Stock Candlestick Chart</h1>
-    <form method="POST">
+    <h1>Stock Chart</h1>
+    <form method="post">
         <label for="stock_code">Stock Code:</label>
         <input type="text" id="stock_code" name="stock_code" required>
         <label for="interval">Interval:</label>
@@ -36,7 +35,7 @@
                 <strong>Candles:</strong>
                 <ul>
                 {% for candle in zone['candles'] %}
-                    <li>Date: {{ candle['date'] }}, Type: {{ candle['type'] }}</li>
+                    <li>Date: {{ candle['date'] }}, Open: {{ candle['open'] }}, High: {{ candle['high'] }}, Low: {{ candle['low'] }}, Close: {{ candle['close'] }}, Type: {{ candle['type'] }}</li>
                 {% endfor %}
                 </ul>
             </li>
