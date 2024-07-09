@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import itertools
 import logging
+from stock_data.pattern_identifier import PatternIdentifier  # Import the PatternIdentifier class
 
 class Plotter:
     @staticmethod
@@ -15,14 +16,7 @@ class Plotter:
         stock_data['UpperWick'] = stock_data['High'] - stock_data[['Close', 'Open']].max(axis=1)
         stock_data['LowerWick'] = stock_data[['Close', 'Open']].min(axis=1) - stock_data['Low']
 
-        stock_data['BaseCandle'] = (
-            (stock_data['UpperWick'] > base_candle_threshold * stock_data['Body']) | 
-            (stock_data['LowerWick'] > base_candle_threshold * stock_data['Body'])
-        )
-        stock_data['ExcitingCandle'] = (
-            (stock_data['UpperWick'] < exciting_candle_threshold * stock_data['Body']) & 
-            (stock_data['LowerWick'] < exciting_candle_threshold * stock_data['Body'])
-        )
+        stock_data = PatternIdentifier.add_candle_identifiers(stock_data, base_candle_threshold * 100, exciting_candle_threshold * 100)
 
         fig = go.Figure(data=[go.Candlestick(
             x=stock_data.index,
@@ -128,13 +122,13 @@ class Plotter:
                             'dates': zone_dates,
                             'proximal': proximal,
                             'distal': distal,
-                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': stock_data.iloc[i].to_dict()}] +
-                                       [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': stock_data.iloc[i + j].to_dict()} for j in range(1, len(base_candles) + 1)] +
-                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': stock_data.iloc[i + len(base_candles) + 1].to_dict()}]
+                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict()}] +
+                                       [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict()} for j in range(1, len(base_candles) + 1)] +
+                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict()}]
                         })
                         logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
                         zone_id += 1
-                        i = i + len(base_candles) + 2  # Move past the identified pattern
+                        i = i + len(base_candles) + 1  # Move past the identified pattern
                     else:
                         i += 1  # Move to the next candle
                 else:

@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stock Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-    <h1>Stock Chart</h1>
-    <form method="post">
+    <h1>Stock Data Visualization</h1>
+    <form method="POST">
         <label for="stock_code">Stock Code:</label>
         <input type="text" id="stock_code" name="stock_code" required>
         <label for="interval">Interval:</label>
@@ -16,22 +17,35 @@
             <option value="1wk">1 Week</option>
             <option value="1mo">1 Month</option>
         </select>
-        <button type="submit">Submit</button>
+        <button type="submit">Get Data</button>
     </form>
-
+    
     {% if chart %}
+        <h2>Candlestick Chart</h2>
         <div>{{ chart|safe }}</div>
     {% endif %}
     
     {% if demand_zones %}
-        <h2>Demand Zones</h2>
-        {% for zone in demand_zones %}
-            <p><strong>Zone {{ zone['zone_id'] }}</strong></p>
-            <p>Proximal: {{ zone['proximal'] }}, Distal: {{ zone['distal'] }}</p>
-            {% for candle in zone['candles'] %}
-                <p>Date: {{ candle['date'] }}, Type: {{ candle['type'] }}, OHLC: Open={{ candle['ohlc']['Open'] }}, High={{ candle['ohlc']['High'] }}, Low={{ candle['ohlc']['Low'] }}, Close={{ candle['ohlc']['Close'] }}</p>
+        <h2>Identified Demand Zones</h2>
+        <ul>
+            {% for zone in demand_zones %}
+                <li>
+                    <strong>Zone {{ zone.zone_id }}</strong> - Proximal: {{ zone.proximal }}, Distal: {{ zone.distal }}
+                    <ul>
+                        {% for candle in zone.candles %}
+                            <li>
+                                Date: {{ candle.date }}, Type: {{ candle.type }},
+                                OHLC: {{ candle.ohlc }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </li>
             {% endfor %}
-        {% endfor %}
+        </ul>
+    {% endif %}
+    
+    {% if error %}
+        <p style="color: red;">Error: {{ error }}</p>
     {% endif %}
 </body>
 </html>
