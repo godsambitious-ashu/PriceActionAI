@@ -1,4 +1,3 @@
-# stock_data/plotter.py
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -129,9 +128,9 @@ class Plotter:
                             'dates': zone_dates,
                             'proximal': proximal,
                             'distal': distal,
-                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting'}] +
-                                       [{'date': stock_data.index[i + j], 'type': 'Base'} for j in range(1, len(base_candles) + 1)] +
-                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting'}]
+                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': stock_data.iloc[i].to_dict()}] +
+                                       [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': stock_data.iloc[i + j].to_dict()} for j in range(1, len(base_candles) + 1)] +
+                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': stock_data.iloc[i + len(base_candles) + 1].to_dict()}]
                         })
                         logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
                         zone_id += 1

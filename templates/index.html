@@ -1,14 +1,13 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stock Candlestick Chart</title>
+    <title>Stock Chart</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-    <h1>Stock Candlestick Chart</h1>
-    <form method="POST">
+    <h1>Stock Chart</h1>
+    <form method="post">
         <label for="stock_code">Stock Code:</label>
         <input type="text" id="stock_code" name="stock_code" required>
         <label for="interval">Interval:</label>
@@ -17,35 +16,22 @@
             <option value="1wk">1 Week</option>
             <option value="1mo">1 Month</option>
         </select>
-        <button type="submit">Get Chart</button>
+        <button type="submit">Submit</button>
     </form>
 
     {% if chart %}
-        <h2>Candlestick Chart</h2>
         <div>{{ chart|safe }}</div>
     {% endif %}
-
+    
     {% if demand_zones %}
         <h2>Demand Zones</h2>
-        <ul>
         {% for zone in demand_zones %}
-            <li>
-                <strong>Zone ID:</strong> {{ zone['zone_id'] }}<br>
-                <strong>Proximal Price:</strong> {{ zone['proximal'] }}<br>
-                <strong>Distal Price:</strong> {{ zone['distal'] }}<br>
-                <strong>Candles:</strong>
-                <ul>
-                {% for candle in zone['candles'] %}
-                    <li>Date: {{ candle['date'] }}, Type: {{ candle['type'] }}</li>
-                {% endfor %}
-                </ul>
-            </li>
+            <p><strong>Zone {{ zone['zone_id'] }}</strong></p>
+            <p>Proximal: {{ zone['proximal'] }}, Distal: {{ zone['distal'] }}</p>
+            {% for candle in zone['candles'] %}
+                <p>Date: {{ candle['date'] }}, Type: {{ candle['type'] }}, OHLC: Open={{ candle['ohlc']['Open'] }}, High={{ candle['ohlc']['High'] }}, Low={{ candle['ohlc']['Low'] }}, Close={{ candle['ohlc']['Close'] }}</p>
+            {% endfor %}
         {% endfor %}
-        </ul>
-    {% endif %}
-
-    {% if error %}
-        <p style="color: red;">Error: {{ error }}</p>
     {% endif %}
 </body>
 </html>
