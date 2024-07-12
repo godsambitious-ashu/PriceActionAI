@@ -35,7 +35,7 @@
                         {% for candle in zone.candles %}
                             <li>
                                 Date: {{ candle.date }}, Type: {{ candle.type }},
-                                OHLC: {{ candle.ohlc }}
+                                OHLC: Open: {{ candle.ohlc.Open }}, High: {{ candle.ohlc.High }}, Low: {{ candle.ohlc.Low }}, Close: {{ candle.ohlc.Close }}
                             </li>
                         {% endfor %}
                     </ul>

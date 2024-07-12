@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import itertools
 import logging
-from stock_data.pattern_identifier import PatternIdentifier  # Import the PatternIdentifier class
+from stock_data.pattern_identifier import PatternIdentifier
 
 class Plotter:
     @staticmethod
@@ -122,9 +122,9 @@ class Plotter:
                             'dates': zone_dates,
                             'proximal': proximal,
                             'distal': distal,
-                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict()}] +
-                                       [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict()} for j in range(1, len(base_candles) + 1)] +
-                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict()}]
+                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict().items()}}] +
+                                       [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict().items()}} for j in range(1, len(base_candles) + 1)] +
+                                       [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
                         })
                         logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
                         zone_id += 1
