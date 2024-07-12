@@ -140,7 +140,7 @@ class Plotter:
                         if first_exciting_candle_is_green:
                             distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
                         else:
-                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in [stock_data.iloc[i]] + base_candles + [stock_data.iloc[i + len(base_candles) + 1]]))
+                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
 
                         patterns.append({
                             'zone_id': zone_id,
@@ -152,8 +152,8 @@ class Plotter:
                                        [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
                         })
                         logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
-                        i = i + len(base_candles) + 1  # Move to the last green exciting candle of the identified pattern
                         zone_id += 1
+                        i = i + len(base_candles)  # Move to the last exciting candle of the identified pattern
                     else:
                         i += 1  # Move to the next candle
                 else:
