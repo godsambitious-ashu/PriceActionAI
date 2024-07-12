@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, render_template
 from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
@@ -22,13 +21,10 @@ def index():
             stock_data_str = "\n".join([f"{idx.date()} Open: {row['Open']} High: {row['High']} Low: {row['Low']} Close: {row['Close']}" for idx, row in stock_data.iterrows()])
             logging.debug("Initial Stock Data:\n" + stock_data_str)
             
-            chart = Plotter.create_candlestick_chart(stock_data, stock_code)
+            chart, demand_zones_info = Plotter.create_candlestick_chart(stock_data, stock_code)
             logging.debug("Chart created successfully")
             
-            demand_zones = Plotter.identify_demand_zones(stock_data)
-            logging.debug(f"Demand zones identified: {demand_zones}")
-            
-            return render_template('index.html', chart=chart, demand_zones=demand_zones, stock_data_str=stock_data_str)
+            return render_template('index.html', chart=chart, demand_zones_info=demand_zones_info, stock_data_str=stock_data_str)
         except Exception as e:
             logging.error(f"Error processing request: {e}")
             return render_template('index.html', chart=None, error=str(e))

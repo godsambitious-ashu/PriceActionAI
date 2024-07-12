@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .chart-container {
+            width: 100%;
+            height: 800px;
+        }
+    </style>
 </head>
 <body>
     <h1>Stock Data Visualization</h1>
@@ -22,26 +28,9 @@
     
     {% if chart %}
         <h2>Candlestick Chart</h2>
-        <div>{{ chart|safe }}</div>
-    {% endif %}
-    
-    {% if demand_zones %}
-        <h2>Identified Demand Zones</h2>
-        <ul>
-            {% for zone in demand_zones %}
-                <li>
-                    <strong>Zone {{ zone.zone_id }}</strong> - Proximal: {{ zone.proximal }}, Distal: {{ zone.distal }}
-                    <ul>
-                        {% for candle in zone.candles %}
-                            <li>
-                                Date: {{ candle.date }}, Type: {{ candle.type }},
-                                OHLC: Open: {{ candle.ohlc.Open }}, High: {{ candle.ohlc.High }}, Low: {{ candle.ohlc.Low }}, Close: {{ candle.ohlc.Close }}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </li>
-            {% endfor %}
-        </ul>
+        <div class="chart-container">{{ chart|safe }}</div>
+        <h2>Demand Zones Information</h2>
+        <div>{{ demand_zones_info|safe }}</div>
     {% endif %}
     
     {% if error %}

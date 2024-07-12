@@ -25,7 +25,8 @@ class Plotter:
             low=stock_data['Low'],
             close=stock_data['Close'],
             increasing_line_color='green',
-            decreasing_line_color='red'
+            decreasing_line_color='red',
+            name='Candlesticks'
         )])
 
         logging.debug("Candlestick chart added")
@@ -37,7 +38,7 @@ class Plotter:
             mode='markers',
             marker=dict(
                 color='blue',
-                size=10,
+                size=12,
                 symbol='circle'
             ),
             name='Base Candles'
@@ -51,7 +52,7 @@ class Plotter:
             mode='markers',
             marker=dict(
                 color='orange',
-                size=10,
+                size=12,
                 symbol='circle'
             ),
             name='Exciting Candles'
@@ -84,12 +85,30 @@ class Plotter:
             xaxis_title='Date',
             yaxis_title='Price',
             xaxis_rangeslider_visible=False,
-            autosize=True
+            autosize=True,
+            height=800,  # Increased figure height for better visibility
+            width=1600,  # Increased figure width for better visibility
+            margin=dict(l=50, r=50, t=50, b=50),
+            font=dict(size=12),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
         )
         
         chart_html = pio.to_html(fig, full_html=False)
+        demand_zones_info = Plotter.generate_demand_zones_info(demand_zones)
         
-        return chart_html
+        return chart_html, demand_zones_info
+
+    @staticmethod
+    def generate_demand_zones_info(demand_zones):
+        info = "<h3>Demand Zones Information</h3><ul>"
+        for zone in demand_zones:
+            info += f"<li>Zone {zone['zone_id']}:<br>"
+            for candle in zone['candles']:
+                info += f"Date: {candle['date']}, Type: {candle['type']}, OHLC: {candle['ohlc']}<br>"
+            info += f"Proximal: {zone['proximal']}, Distal: {zone['distal']}</li><br>"
+        info += "</ul>"
+        return info
 
     @staticmethod
     def identify_demand_zones(stock_data):
@@ -121,7 +140,7 @@ class Plotter:
                         if first_exciting_candle_is_green:
                             distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
                         else:
-                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
+                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in [stock_data.iloc[i]] + base_candles + [stock_data.iloc[i + len(base_candles) + 1]]))
 
                         patterns.append({
                             'zone_id': zone_id,
@@ -133,8 +152,8 @@ class Plotter:
                                        [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
                         })
                         logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
+                        i = i + len(base_candles) + 1  # Move to the last green exciting candle of the identified pattern
                         zone_id += 1
-                        i = i + len(base_candles) + 1  # Move past the identified pattern
                     else:
                         i += 1  # Move to the next candle
                 else:
