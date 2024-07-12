@@ -5,7 +5,7 @@ class PatternIdentifier:
     def add_candle_identifiers(stock_data, base_candle_pct, exciting_candle_pct):
         base_candle_threshold = base_candle_pct / 100.0
         exciting_candle_threshold = exciting_candle_pct / 100.0
-        gap_up_threshold = 0.03  # 3%
+        gap_up_threshold = 0.01  # 3%
 
         stock_data['BaseCandle'] = (
             (stock_data['UpperWick'] > base_candle_threshold * stock_data['Body']) | 

@@ -103,6 +103,7 @@ class Plotter:
             logging.debug(f"Checking candle at index {i}")
             if stock_data.iloc[i]['ExcitingCandle']:
                 logging.debug(f"Found exciting candle at index {i}")
+                first_exciting_candle_is_green = stock_data.iloc[i]['Close'] > stock_data.iloc[i]['Open']
                 if i + 1 < n and stock_data.iloc[i + 1]['BaseCandle']:
                     logging.debug(f"Found base candle at index {i+1}")
                     base_candles = [stock_data.iloc[i + 1]]
@@ -115,8 +116,13 @@ class Plotter:
                     if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle'] and stock_data.iloc[i + len(base_candles) + 1]['Close'] > stock_data.iloc[i + len(base_candles) + 1]['Open']:
                         logging.debug(f"Found green exciting candle at index {i + len(base_candles) + 1}")
                         zone_dates = stock_data.index[i:i + len(base_candles) + 2]
-                        proximal = max(candle['Open'] for candle in base_candles)
-                        distal = min(candle['Low'] for candle in base_candles)
+                        proximal = max(max(candle['Open'], candle['Close']) for candle in base_candles)
+                        
+                        if first_exciting_candle_is_green:
+                            distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
+                        else:
+                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
+
                         patterns.append({
                             'zone_id': zone_id,
                             'dates': zone_dates,
