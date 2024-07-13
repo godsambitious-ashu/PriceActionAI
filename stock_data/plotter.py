@@ -105,7 +105,8 @@ class Plotter:
         for zone in demand_zones:
             info += f"<li>Zone {zone['zone_id']}:<br>"
             for candle in zone['candles']:
-                info += f"Date: {candle['date']}, Type: {candle['type']}, OHLC: {candle['ohlc']}<br>"
+                date_str = pd.to_datetime(candle['date']).strftime('%Y-%m-%d')  # Convert date to string format YYYY-MM-DD
+                info += f"Date: {date_str}, Type: {candle['type']}<br>"
             info += f"Proximal: {zone['proximal']}, Distal: {zone['distal']}</li><br>"
         info += "</ul>"
         return info
