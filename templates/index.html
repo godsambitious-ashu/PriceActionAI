@@ -52,21 +52,7 @@
         </div>
         <div class="info">
             <h2>Identified Demand Zones</h2>
-            <ul>
-                {% for zone in demand_zones %}
-                    <li>
-                        <strong>Zone {{ zone.zone_id }}</strong> - Proximal: {{ zone.proximal }}, Distal: {{ zone.distal }}
-                        <ul>
-                            {% for candle in zone.candles %}
-                                <li>
-                                    Date: {{ candle.date }}, Type: {{ candle.type }},
-                                    OHLC: Open: {{ candle.ohlc.Open }}, High: {{ candle.ohlc.High }}, Low: {{ candle.ohlc.Low }}, Close: {{ candle.ohlc.Close }}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                {% endfor %}
-            </ul>
+            {{ demand_zones_info|safe }}
         </div>
     {% endif %}
     
