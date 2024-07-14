@@ -11,10 +11,11 @@ def index():
     if request.method == 'POST':
         stock_code = request.form['stock_code']
         interval = request.form['interval']
-        logging.debug(f"Form submitted: {stock_code} with interval {interval}")
+        period = request.form['period']
+        logging.debug(f"Form submitted: {stock_code} with interval {interval} and period {period}")
         
         try:
-            stock_data = DataFetcher.fetch_stock_data(stock_code, interval)
+            stock_data = DataFetcher.fetch_stock_data(stock_code, interval=interval, period=period)
             logging.debug("Data fetched successfully")
             
             # Print the initial data in the format "date OHLC"
