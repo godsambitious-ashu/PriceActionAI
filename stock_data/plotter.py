@@ -139,8 +139,10 @@ class Plotter:
                     if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle'] and stock_data.iloc[i + len(base_candles) + 1]['Close'] > stock_data.iloc[i + len(base_candles) + 1]['Open']:
                         logging.debug(f"Found green exciting candle at index {i + len(base_candles) + 1}")
                         zone_dates = stock_data.index[i:i + len(base_candles) + 2]
-                        proximal = max(max(candle['Open'], candle['Close']) for candle in base_candles)
                         
+                        # Proximal line is the highest open or close of the base candle immediately before the last green exciting candle
+                        proximal = max(stock_data.iloc[i + len(base_candles)][['Open', 'Close']])
+
                         if first_exciting_candle_is_green:
                             distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
                         else:
@@ -169,4 +171,3 @@ class Plotter:
         
         logging.debug("Demand zones identification completed")
         return patterns
-
