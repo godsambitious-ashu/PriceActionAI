@@ -126,7 +126,9 @@ class Plotter:
             logging.debug(f"Checking candle at index {i}")
             if stock_data.iloc[i]['ExcitingCandle']:
                 logging.debug(f"Found exciting candle at index {i}")
+                
                 first_exciting_candle_is_green = stock_data.iloc[i]['Close'] > stock_data.iloc[i]['Open']
+                
                 if i + 1 < n and stock_data.iloc[i + 1]['BaseCandle']:
                     logging.debug(f"Found base candle at index {i+1}")
                     base_candles = [stock_data.iloc[i + 1]]
