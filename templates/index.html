@@ -2,36 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stock Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .form-container, .chart, .info {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px;
+        }
+        .form-container {
+            text-align: center;
+        }
+        .form-container form {
+            display: inline-block;
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
-    <h1>Stock Chart</h1>
-    <form method="post">
-        <label for="stock_code">Stock Code:</label>
-        <input type="text" id="stock_code" name="stock_code" required>
-        <label for="interval">Interval:</label>
-        <select id="interval" name="interval">
-            <option value="1d">1 Day</option>
-            <option value="1wk">1 Week</option>
-            <option value="1mo">1 Month</option>
-        </select>
-        <button type="submit">Submit</button>
-    </form>
-
+    <div class="form-container">
+        <h1>Stock Data Visualization</h1>
+        <form method="POST">
+            <label for="stock_code">Stock Code:</label>
+            <input type="text" id="stock_code" name="stock_code" required>
+            <label for="interval">Interval:</label>
+            <select id="interval" name="interval">
+                <option value="1d">1 Day</option>
+                <option value="1wk">1 Week</option>
+                <option value="1mo">1 Month</option>
+            </select>
+            <label for="period">Period:</label>
+            <select id="period" name="period">
+                <option value="1d">1 Day</option>
+                <option value="5d">5 Days</option>
+                <option value="1mo">1 Month</option>
+                <option value="3mo">3 Months</option>
+                <option value="6mo">6 Months</option>
+                <option value="1y">1 Year</option>
+                <option value="2y">2 Years</option>
+                <option value="5y">5 Years</option>
+                <option value="10y">10 Years</option>
+                <option value="ytd">Year to Date</option>
+                <option value="max">Max</option>
+            </select>
+            <button type="submit">Get Data</button>
+        </form>
+    </div>
+    
     {% if chart %}
-        <div>{{ chart|safe }}</div>
+        <div class="chart">
+            <h2>Candlestick Chart</h2>
+            <div>{{ chart|safe }}</div>
+        </div>
+        <div class="info">
+            <h2>Identified Demand Zones</h2>
+            {{ demand_zones_info|safe }}
+        </div>
     {% endif %}
     
-    {% if demand_zones %}
-        <h2>Demand Zones</h2>
-        {% for zone in demand_zones %}
-            <p><strong>Zone {{ zone['zone_id'] }}</strong></p>
-            <p>Proximal: {{ zone['proximal'] }}, Distal: {{ zone['distal'] }}</p>
-            {% for candle in zone['candles'] %}
-                <p>Date: {{ candle['date'] }}, Type: {{ candle['type'] }}, OHLC: Open={{ candle['ohlc']['Open'] }}, High={{ candle['ohlc']['High'] }}, Low={{ candle['ohlc']['Low'] }}, Close={{ candle['ohlc']['Close'] }}</p>
-            {% endfor %}
-        {% endfor %}
+    {% if error %}
+        <p style="color: red;">Error: {{ error }}</p>
     {% endif %}
 </body>
 </html>
