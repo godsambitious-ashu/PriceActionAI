@@ -1,5 +1,6 @@
 import logging
 
+
 class DemandZoneIdentifier:
     @staticmethod
     def identify_demand_zones(stock_data):
@@ -38,17 +39,30 @@ class DemandZoneIdentifier:
                             distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
                             if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle']:
                                 distal = min(distal, stock_data.iloc[i + len(base_candles) + 1]['Low'])
+                        
+                        # Calculate score based on green exciting or gap-up candles
+                        score = 0
+                        j = i + len(base_candles) + 2
+                        while j < n:
+                            if stock_data.iloc[j]['ExcitingCandle'] and stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']:
+                                score += 1
+                            elif 'GapUpCandle' in stock_data.columns and stock_data.iloc[j]['GapUpCandle']:
+                                score += 2
+                            else:
+                                break
+                            j += 1
 
                         patterns.append({
                             'zone_id': zone_id,
                             'dates': zone_dates,
                             'proximal': proximal,
                             'distal': distal,
+                            'score': score,
                             'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict().items()}}] +
                                     [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict().items()}} for j in range(1, len(base_candles) + 1)] +
                                     [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
                         })
-                        logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
+                        logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}, score={score}")
                         zone_id += 1
                         i = i + len(base_candles) + 1  # Move to the last exciting candle of the identified pattern
                     else:

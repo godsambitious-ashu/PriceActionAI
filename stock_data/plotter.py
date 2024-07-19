@@ -115,9 +115,10 @@ class Plotter:
                 info += (f"Date: {date_str}, Type: {candle['type']}, "
                         f"Open: {ohlc['Open']}, High: {ohlc['High']}, "
                         f"Low: {ohlc['Low']}, Close: {ohlc['Close']}<br>")
-            info += f"Proximal: {zone['proximal']}, Distal: {zone['distal']}</li><br>"
+            info += f"Proximal: {zone['proximal']}, Distal: {zone['distal']}, Score: {zone['score']}</li><br>"
         info += "</ul>"
         return info
+
 
     @staticmethod
     def is_fresh_demand_zone(stock_data, zone):
