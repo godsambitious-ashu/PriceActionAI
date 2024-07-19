@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import itertools
 import logging
+from stock_data.demand_zone_identifier import DemandZoneIdentifier
 from stock_data.pattern_identifier import PatternIdentifier
 
 class Plotter:
@@ -61,7 +62,7 @@ class Plotter:
 
         # Identify and mark demand zones
         logging.debug("Identifying demand zones")
-        demand_zones = Plotter.identify_demand_zones(stock_data)
+        demand_zones = DemandZoneIdentifier.identify_demand_zones(stock_data)
         logging.debug(f"Demand zones identified: {len(demand_zones)} zones found")
         
         if fresh:
@@ -119,68 +120,6 @@ class Plotter:
         return info
 
     @staticmethod
-    def identify_demand_zones(stock_data):
-        logging.debug("Starting to identify demand zones")
-        patterns = []
-        zone_id = 1
-        n = len(stock_data)
-        
-        i = 0
-        while i < n - 4:
-            logging.debug(f"Checking candle at index {i}")
-            if stock_data.iloc[i]['ExcitingCandle']:
-                logging.debug(f"Found exciting candle at index {i}")
-                
-                first_exciting_candle_is_green = stock_data.iloc[i]['Close'] > stock_data.iloc[i]['Open']
-                
-                if i + 1 < n and stock_data.iloc[i + 1]['BaseCandle']:
-                    logging.debug(f"Found base candle at index {i+1}")
-                    base_candles = [stock_data.iloc[i + 1]]
-                    if i + 2 < n and stock_data.iloc[i + 2]['BaseCandle']:
-                        logging.debug(f"Found base candle at index {i+2}")
-                        base_candles.append(stock_data.iloc[i + 2])
-                    if i + 3 < n and stock_data.iloc[i + 3]['BaseCandle']:
-                        logging.debug(f"Found base candle at index {i+3}")
-                        base_candles.append(stock_data.iloc[i + 3])
-                    if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle'] and stock_data.iloc[i + len(base_candles) + 1]['Close'] > stock_data.iloc[i + len(base_candles) + 1]['Open']:
-                        logging.debug(f"Found green exciting candle at index {i + len(base_candles) + 1}")
-                        zone_dates = stock_data.index[i:i + len(base_candles) + 2]
-                        
-                        # Proximal line is the highest open or close of the base candle immediately before the last green exciting candle
-                        proximal = max(stock_data.iloc[i + len(base_candles)][['Open', 'Close']])
-
-                        if first_exciting_candle_is_green:
-                            distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
-                        else:
-                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
-                            if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle']:
-                                distal = min(distal, stock_data.iloc[i + len(base_candles) + 1]['Low'])
-
-                        patterns.append({
-                            'zone_id': zone_id,
-                            'dates': zone_dates,
-                            'proximal': proximal,
-                            'distal': distal,
-                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict().items()}}] +
-                                    [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict().items()}} for j in range(1, len(base_candles) + 1)] +
-                                    [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
-                        })
-                        logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}")
-                        zone_id += 1
-                        i = i + len(base_candles) + 1  # Move to the last exciting candle of the identified pattern
-                    else:
-                        logging.debug(f"Pattern not completed at index {i + len(base_candles) + 1}")
-                        i += 1  # Move to the next candle
-                else:
-                    logging.debug(f"No base candle found after exciting candle at index {i}")
-                    i += 1  # Move to the next candle
-            else:
-                i += 1  # Move to the next candle
-        
-        logging.debug("Demand zones identification completed")
-        return patterns
-
-    @staticmethod
     def is_fresh_demand_zone(stock_data, zone):
         # Check if the price has never entered the demand zone after it was created
         distal = zone['distal']
@@ -195,26 +134,3 @@ class Plotter:
             if stock_data.loc[date, 'Low'] <= distal:
                 return False
         return True
-
-# Sample data
-data = {
-    'Date': ['2023-07-10', '2023-07-11', '2023-07-12', '2023-07-13', '2023-07-14'],
-    'Open': [100.0, 106.0, 114.0, 110.0, 112.0],
-    'High': [110.0, 112.0, 120.0, 115.0, 115.0],
-    'Low': [95.0, 100.0, 108.0, 105.0, 108.0],
-    'Close': [105.0, 111.0, 118.0, 109.0, 110.0]
-}
-df = pd.DataFrame(data)
-df['Date'] = pd.to_datetime(df['Date'])
-df.set_index('Date', inplace=True)
-
-# Apply PatternIdentifier
-pattern_identifier = PatternIdentifier()
-df = pattern_identifier.add_candle_identifiers(df, base_candle_pct=10, exciting_candle_pct=5)
-
-# Identify demand zones
-patterns = Plotter.identify_demand_zones(df)
-
-# Display patterns
-for pattern in patterns:
-    print(pattern)
