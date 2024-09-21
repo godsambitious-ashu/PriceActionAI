@@ -1,78 +1,109 @@
 import logging
 
-
 class DemandZoneIdentifier:
     @staticmethod
-    def identify_demand_zones(stock_data):
+    def identify_demand_zones(stock_data, gap_threshold=0.01):
         logging.debug("Starting to identify demand zones")
         patterns = []
         zone_id = 1
         n = len(stock_data)
-        
-        i = 0
-        while i < n - 4:
-            logging.debug(f"Checking candle at index {i}")
-            if stock_data.iloc[i]['ExcitingCandle']:
-                logging.debug(f"Found exciting candle at index {i}")
-                
-                first_exciting_candle_is_green = stock_data.iloc[i]['Close'] > stock_data.iloc[i]['Open']
-                
-                if i + 1 < n and stock_data.iloc[i + 1]['BaseCandle']:
-                    logging.debug(f"Found base candle at index {i+1}")
-                    base_candles = [stock_data.iloc[i + 1]]
-                    if i + 2 < n and stock_data.iloc[i + 2]['BaseCandle']:
-                        logging.debug(f"Found base candle at index {i+2}")
-                        base_candles.append(stock_data.iloc[i + 2])
-                    if i + 3 < n and stock_data.iloc[i + 3]['BaseCandle']:
-                        logging.debug(f"Found base candle at index {i+3}")
-                        base_candles.append(stock_data.iloc[i + 3])
-                    if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle'] and stock_data.iloc[i + len(base_candles) + 1]['Close'] > stock_data.iloc[i + len(base_candles) + 1]['Open']:
-                        logging.debug(f"Found green exciting candle at index {i + len(base_candles) + 1}")
-                        zone_dates = stock_data.index[i:i + len(base_candles) + 2]
-                        
-                        # Proximal line is the highest open or close of the base candle immediately before the last green exciting candle
-                        proximal = max(stock_data.iloc[i + len(base_candles)][['Open', 'Close']])
 
-                        if first_exciting_candle_is_green:
-                            distal = min(candle['Low'] for candle in base_candles + [stock_data.iloc[i + len(base_candles) + 1]])
-                        else:
-                            distal = min(stock_data.iloc[i]['Low'], *(candle['Low'] for candle in base_candles))
-                            if i + len(base_candles) + 1 < n and stock_data.iloc[i + len(base_candles) + 1]['ExcitingCandle']:
-                                distal = min(distal, stock_data.iloc[i + len(base_candles) + 1]['Low'])
-                        
-                        # Calculate score based on green exciting or gap-up candles
-                        score = 0
-                        j = i + len(base_candles) + 2
-                        while j < n:
-                            if stock_data.iloc[j]['ExcitingCandle'] and stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']:
-                                score += 1
-                            elif 'GapUpCandle' in stock_data.columns and stock_data.iloc[j]['GapUpCandle']:
-                                score += 2
-                            else:
-                                break
-                            j += 1
+        # Define Gap-Up Candles
+        stock_data['GapUpCandle'] = stock_data['Open'] > stock_data['Close'].shift(1) * (1 + gap_threshold)
 
-                        patterns.append({
-                            'zone_id': zone_id,
-                            'dates': zone_dates,
-                            'proximal': proximal,
-                            'distal': distal,
-                            'score': score,
-                            'candles': [{'date': stock_data.index[i], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].to_dict().items()}}] +
-                                    [{'date': stock_data.index[i + j], 'type': 'Base', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + j][['Open', 'High', 'Low', 'Close']].to_dict().items()}} for j in range(1, len(base_candles) + 1)] +
-                                    [{'date': stock_data.index[i + len(base_candles) + 1], 'type': 'Exciting', 'ohlc': {k: round(v, 2) for k, v in stock_data.iloc[i + len(base_candles) + 1][['Open', 'High', 'Low', 'Close']].to_dict().items()}}]
-                        })
-                        logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}, score={score}")
-                        zone_id += 1
-                        i = i + len(base_candles) + 1  # Move to the last exciting candle of the identified pattern
+        i = 1  # Start from 1 because we use shift(1) for gap-up calculation
+        while i < n - 1:
+            logging.debug(f"Checking candle at index {i}, date: {stock_data.index[i]}, Open: {stock_data.iloc[i]['Open']}, Close: {stock_data.iloc[i]['Close']}, High: {stock_data.iloc[i]['High']}, Low: {stock_data.iloc[i]['Low']}")
+
+            # Check if the first candle is an exciting candle or a gap-up candle
+            first_candle_condition = stock_data.iloc[i]['ExcitingCandle'] or stock_data.iloc[i]['GapUpCandle']
+
+            if first_candle_condition:
+                logging.debug(f"Found first candle at index {i} with date {stock_data.index[i]}")
+
+                first_candle_is_green = stock_data.iloc[i]['Close'] > stock_data.iloc[i]['Open']
+
+                base_candles = []
+                j = i + 1
+                # Collect up to a maximum of 3 base candles
+                while j < n and len(base_candles) < 3:
+                    if stock_data.iloc[j]['BaseCandle']:
+                        logging.debug(f"Found base candle at index {j}, date: {stock_data.index[j]}")
+                        base_candles.append(stock_data.iloc[j])
+                        j += 1
                     else:
-                        logging.debug(f"Pattern not completed at index {i + len(base_candles) + 1}")
-                        i += 1  # Move to the next candle
+                        # Stop collecting base candles if a non-base candle is encountered
+                        break
+
+                # Check if at least one base candle has been collected
+                if len(base_candles) >= 1:
+                    # Check if the second candle is a green exciting candle or a gap-up candle
+                    if j < n and (stock_data.iloc[j]['ExcitingCandle'] or stock_data.iloc[j]['GapUpCandle']):
+                        second_candle_is_green = stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']
+                        if second_candle_is_green or stock_data.iloc[j]['GapUpCandle']:
+                            logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
+                            zone_dates = stock_data.index[i:j+1]
+
+                            # Proximal line is the highest open or close of the base candle immediately before the second candle
+                            proximal = max(stock_data.iloc[j - 1][['Open', 'Close']])
+
+                            # Calculate distal
+                            low_values = []
+                            if first_candle_is_green or stock_data.iloc[i]['GapUpCandle']:
+                                # Include 'Low' of base candles and second candle
+                                low_values.extend(candle['Low'] for candle in base_candles)
+                                low_values.append(stock_data.iloc[j]['Low'])
+                            else:
+                                # Include 'Low' of first candle, base candles, and second candle
+                                low_values.append(stock_data.iloc[i]['Low'])
+                                low_values.extend(candle['Low'] for candle in base_candles)
+                                low_values.append(stock_data.iloc[j]['Low'])
+
+                            distal = min(low_values)
+
+                            # Calculate score based on subsequent exciting or gap-up candles
+                            score = 0
+                            k = j + 1
+                            while k < n:
+                                if stock_data.iloc[k]['ExcitingCandle'] and stock_data.iloc[k]['Close'] > stock_data.iloc[k]['Open']:
+                                    score += 1
+                                elif stock_data.iloc[k]['GapUpCandle']:
+                                    score += 2
+                                else:
+                                    break
+                                k += 1
+
+                            # Append the identified pattern
+                            patterns.append({
+                                'zone_id': zone_id,
+                                'dates': zone_dates,
+                                'proximal': proximal,
+                                'distal': distal,
+                                'score': score,
+                                'candles': (
+                                    [{'date': stock_data.index[i], 'type': 'First', 'ohlc': stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].round(2).to_dict()}] +
+                                    [{'date': stock_data.index[idx], 'type': 'Base', 'ohlc': stock_data.iloc[idx][['Open', 'High', 'Low', 'Close']].round(2).to_dict()} for idx in range(i + 1, j)] +
+                                    [{'date': stock_data.index[j], 'type': 'Second', 'ohlc': stock_data.iloc[j][['Open', 'High', 'Low', 'Close']].round(2).to_dict()}]
+                                )
+                            })
+                            logging.debug(f"Pattern identified with dates: {zone_dates} and prices: proximal={proximal}, distal={distal}, score={score}")
+                            zone_id += 1
+                            i = j  # Move to the last candle of the identified pattern
+                            continue  # Proceed to the next iteration
+                        else:
+                            # Second candle is not green or a gap-up; pattern breaks
+                            logging.debug(f"Second candle at index {j} is not valid; pattern breaks")
+                            i = j
+                    else:
+                        # No valid second candle found; pattern incomplete
+                        logging.debug(f"Pattern not completed at index {j}")
+                        i = j  # Move past the base candles
                 else:
-                    logging.debug(f"No base candle found after exciting candle at index {i}")
-                    i += 1  # Move to the next candle
+                    # No base candles collected; pattern invalid
+                    logging.debug(f"No base candles collected after first candle at index {i}; pattern invalid")
+                    i = j  # Move past the first candle and any non-base candles
             else:
                 i += 1  # Move to the next candle
-        
+
         logging.debug("Demand zones identification completed")
         return patterns

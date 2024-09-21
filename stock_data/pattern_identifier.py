@@ -24,5 +24,5 @@ class PatternIdentifier:
             (stock_data['LowerWick'] < exciting_candle_threshold * stock_data['Body'])) | 
             stock_data['GapUp']
         )
-
+        
         return stock_data
