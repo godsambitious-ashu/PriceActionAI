@@ -5,73 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .form-container, .chart, .info {
-            width: 100%;
-            max-width: 800px;
-            margin: 20px;
-        }
-        .form-container {
-            text-align: center;
-        }
-        .form-container form {
-            display: inline-block;
-            text-align: left;
-        }
-    </style>
 </head>
 <body>
-    <div class="form-container">
-        <h1>Stock Data Visualization</h1>
-        <form method="POST">
-            <label for="stock_code">Stock Code:</label>
-            <input type="text" id="stock_code" name="stock_code" required>
-            <label for="interval">Interval:</label>
-            <select id="interval" name="interval">
-                <option value="1d">1 Day</option>
-                <option value="1wk">1 Week</option>
-                <option value="1mo">1 Month</option>
-            </select>
-            <label for="period">Period:</label>
-            <select id="period" name="period">
-                <option value="1d">1 Day</option>
-                <option value="5d">5 Days</option>
-                <option value="1mo">1 Month</option>
-                <option value="3mo">3 Months</option>
-                <option value="6mo">6 Months</option>
-                <option value="1y">1 Year</option>
-                <option value="2y">2 Years</option>
-                <option value="5y">5 Years</option>
-                <option value="10y">10 Years</option>
-                <option value="ytd">Year to Date</option>
-                <option value="max">Max</option>
-            </select>
-            <button type="submit">Get Data</button>
-        </form>
+    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center;">
+            <h1>Stock Data Visualization</h1>
+            <form method="POST" style="display: flex; flex-direction: column; align-items: center;">
+                <div style="margin-bottom: 10px;">
+                    <label for="stock_code">Stock Code:</label>
+                    <input type="text" id="stock_code" name="stock_code" required>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label for="interval">Interval:</label>
+                    <select id="interval" name="interval">
+                        <option value="1d">1 Day</option>
+                        <option value="1wk">1 Week</option>
+                        <option value="1mo">1 Month</option>
+                        <option value="3mo">3 Month</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label for="period">Period:</label>
+                    <select id="period" name="period" value="1y">
+                        <option value="1d">1 Day</option>
+                        <option value="5d">5 Days</option>
+                        <option value="1mo">1 Month</option>
+                        <option value="3mo">3 Months</option>
+                        <option value="6mo">6 Months</option>
+                        <option value="1y" selected>1 Year</option>
+                        <option value="2y">2 Years</option>
+                        <option value="5y">5 Years</option>
+                        <option value="10y">10 Years</option>
+                        <option value="ytd">Year to Date</option>
+                        <option value="max">Max</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <button type="submit">Get Data</button>
+                </div>
+            </form>
+        </div>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <label for="fresh_toggle">Show only fresh demand zones:</label>
+            <input type="checkbox" id="fresh_toggle" name="fresh_toggle" onchange="toggleFreshZones()">
+        </div>
+        <div class="chart" id="chart_container">
+            <h2 style="text-align: center;">Candlestick Chart</h2>
+            <div id="chart_all_zones">{{ chart_all_zones|safe }}</div>
+            <div id="chart_fresh_zones" style="display:none;">{{ chart_fresh_zones|safe }}</div>
+        </div>
+        <div class="info" id="info_container" style="text-align: center;">
+            <h2>Identified Demand Zones</h2>
+            <div id="info_all_zones">{{ demand_zones_info_all|safe }}</div>
+            <div id="info_fresh_zones" style="display:none;">{{ demand_zones_info_fresh|safe }}</div>
+        </div>
+        {% if error %}
+            <p style="color: red; text-align: center;">Error: {{ error }}</p>
+        {% endif %}
     </div>
     
-    {% if chart %}
-        <div class="chart">
-            <h2>Candlestick Chart</h2>
-            <div>{{ chart|safe }}</div>
-        </div>
-        <div class="info">
-            <h2>Identified Demand Zones</h2>
-            {{ demand_zones_info|safe }}
-        </div>
-    {% endif %}
-    
-    {% if error %}
-        <p style="color: red;">Error: {{ error }}</p>
-    {% endif %}
+    <script>
+        function toggleFreshZones() {
+            var freshToggle = document.getElementById('fresh_toggle').checked;
+            var chartAllZones = document.getElementById('chart_all_zones');
+            var chartFreshZones = document.getElementById('chart_fresh_zones');
+            var infoAllZones = document.getElementById('info_all_zones');
+            var infoFreshZones = document.getElementById('info_fresh_zones');
+            
+            if (freshToggle) {
+                chartAllZones.style.display = 'none';
+                chartFreshZones.style.display = 'block';
+                infoAllZones.style.display = 'none';
+                infoFreshZones.style.display = 'block';
+            } else {
+                chartAllZones.style.display = 'block';
+                chartFreshZones.style.display = 'none';
+                infoAllZones.style.display = 'block';
+                infoFreshZones.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

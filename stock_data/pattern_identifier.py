@@ -24,8 +24,5 @@ class PatternIdentifier:
             (stock_data['LowerWick'] < exciting_candle_threshold * stock_data['Body'])) | 
             stock_data['GapUp']
         )
-
-        # Set BaseCandle to False where GapUp and ExcitingCandle are True
-        stock_data.loc[stock_data['GapUp'] & stock_data['ExcitingCandle'], 'BaseCandle'] = False
-
+        
         return stock_data
