@@ -2,7 +2,7 @@ import logging
 
 class DemandZoneIdentifier:
     @staticmethod
-    def identify_demand_zones(stock_data, gap_threshold=0.01):
+    def identify_demand_zones(stock_data, interval, gap_threshold=0.01):
         logging.debug("Starting to identify demand zones")
         patterns = []
         zone_id = 1
@@ -10,6 +10,15 @@ class DemandZoneIdentifier:
 
         # Define Gap-Up Candles
         stock_data['GapUpCandle'] = stock_data['Open'] > stock_data['Close'].shift(1) * (1 + gap_threshold)
+
+        # Define the intervals that allow up to 6 base candles
+        extended_intervals = ['1m', '3m', '6m', '1y', '2y', '5y', '10y']
+
+        # Set the maximum number of base candles based on the interval
+        if interval in extended_intervals:
+            max_base_candles = 6
+        else:
+            max_base_candles = 3
 
         i = 1  # Start from 1 because we use shift(1) for gap-up calculation
         while i < n - 1:
@@ -25,19 +34,19 @@ class DemandZoneIdentifier:
 
                 base_candles = []
                 j = i + 1
-                # Collect up to a maximum of 3 base candles
-                while j < n and len(base_candles) < 3:
-                    if stock_data.iloc[j]['BaseCandle']:
+                # Collect up to a maximum of max_base_candles
+                while j < n and len(base_candles) < max_base_candles:
+                    if stock_data.iloc[j]['BaseCandle'] and not stock_data.iloc[j]['ExcitingCandle'] and not stock_data.iloc[j]['GapUpCandle']:
                         logging.debug(f"Found base candle at index {j}, date: {stock_data.index[j]}")
                         base_candles.append(stock_data.iloc[j])
                         j += 1
                     else:
-                        # Stop collecting base candles if a non-base candle is encountered
+                        # Stop collecting base candles if a non-base or exciting candle is encountered
                         break
 
                 # Check if at least one base candle has been collected
                 if len(base_candles) >= 1:
-                    # Check if the second candle is a green exciting candle or a gap-up candle
+                    # Check if the next candle is an exciting candle or a gap-up candle
                     if j < n and (stock_data.iloc[j]['ExcitingCandle'] or stock_data.iloc[j]['GapUpCandle']):
                         second_candle_is_green = stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']
                         if second_candle_is_green or stock_data.iloc[j]['GapUpCandle']:

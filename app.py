@@ -23,8 +23,8 @@ def index():
             logging.debug("Initial Stock Data:\n" + stock_data_str)
             
             # Create charts for both all zones and fresh zones
-            chart_all_zones, demand_zones_info_all = Plotter.create_candlestick_chart(stock_data, stock_code, fresh=False)
-            chart_fresh_zones, demand_zones_info_fresh = Plotter.create_candlestick_chart(stock_data, stock_code, fresh=True)
+            chart_all_zones, demand_zones_info_all = Plotter.create_candlestick_chart(stock_data, stock_code, interval, fresh=False)
+            chart_fresh_zones, demand_zones_info_fresh = Plotter.create_candlestick_chart(stock_data, stock_code, interval, fresh=True)
             logging.debug("Charts created successfully")
             
             return render_template('index.html', 

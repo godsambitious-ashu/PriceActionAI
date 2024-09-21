@@ -8,7 +8,7 @@ from stock_data.pattern_identifier import PatternIdentifier
 
 class Plotter:
     @staticmethod
-    def create_candlestick_chart(stock_data, stock_code, fresh=False):
+    def create_candlestick_chart(stock_data, stock_code, interval, fresh=False):
         logging.debug("Starting to create candlestick chart")
         base_candle_threshold = 0.5
         exciting_candle_threshold = 0.5
@@ -62,7 +62,7 @@ class Plotter:
 
         # Identify and mark demand zones
         logging.debug("Identifying demand zones")
-        demand_zones = DemandZoneIdentifier.identify_demand_zones(stock_data)
+        demand_zones = DemandZoneIdentifier.identify_demand_zones(stock_data, interval)
         logging.debug(f"Demand zones identified: {len(demand_zones)} zones found")
         
         if fresh:
