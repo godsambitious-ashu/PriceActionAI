@@ -135,3 +135,66 @@ class Plotter:
             if stock_data.loc[date, 'Low'] <= distal:
                 return False
         return True
+
+    @staticmethod
+    def map_higher_timeframe_zones_to_daily(stock_data_daily, higher_timeframe_zones):
+        logging.debug("Mapping higher timeframe zones to daily data")
+        mapped_zones = []
+        for zone in higher_timeframe_zones:
+            # Since the dates are for weekly/monthly data, expand the zone dates to daily dates
+            start_date = zone['dates'][0]
+            end_date = zone['dates'][-1]
+            # Filter daily data within the zone dates
+            zone_dates = stock_data_daily.loc[start_date:end_date].index
+            if not zone_dates.empty:
+                # Update the zone's dates to daily dates
+                zone_copy = zone.copy()
+                zone_copy['dates'] = zone_dates
+                mapped_zones.append(zone_copy)
+        logging.debug(f"Mapped {len(mapped_zones)} higher timeframe zones to daily data")
+        return mapped_zones
+
+    @staticmethod
+    def create_candlestick_chart_with_zones(stock_data_daily, stock_code, higher_timeframe_zones):
+        logging.debug("Creating candlestick chart with higher timeframe zones")
+        # Create the candlestick chart for daily data
+        fig = go.Figure(data=[go.Candlestick(
+            x=stock_data_daily.index,
+            open=stock_data_daily['Open'],
+            high=stock_data_daily['High'],
+            low=stock_data_daily['Low'],
+            close=stock_data_daily['Close'],
+            increasing_line_color='green',
+            decreasing_line_color='red',
+            name='Daily Candlesticks'
+        )])
+        
+        # Overlay the higher timeframe zones
+        colors = itertools.cycle(['purple', 'cyan'])
+        for zone in higher_timeframe_zones:
+            color = next(colors)
+            # Draw rectangle for each zone
+            fig.add_shape(
+                type='rect',
+                x0=zone['dates'][0], y0=zone['distal'],
+                x1=zone['dates'][-1], y1=zone['proximal'],
+                line=dict(color=color, width=2),
+                fillcolor=color, opacity=0.3,
+            )
+        
+        fig.update_layout(
+            title=f'Candlestick Chart for {stock_code} with Higher Timeframe Zones',
+            xaxis_title='Date',
+            yaxis_title='Price',
+            xaxis_rangeslider_visible=False,
+            autosize=True,
+            height=800,
+            width=1600,
+            margin=dict(l=50, r=50, t=50, b=50),
+            font=dict(size=12),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        chart_html = pio.to_html(fig, full_html=False)
+        return chart_html

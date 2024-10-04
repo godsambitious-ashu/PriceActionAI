@@ -2,68 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form > div {
+            margin-bottom: 10px;
+        }
+        .chart, .info {
+            margin-top: 30px;
+        }
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .toggle-container > div {
+            margin: 0 20px;
+        }
+        .error {
+            color: red;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center;">
-            <h1>Stock Data Visualization</h1>
-            <form method="POST" style="display: flex; flex-direction: column; align-items: center;">
-                <div style="margin-bottom: 10px;">
-                    <label for="stock_code">Stock Code:</label>
-                    <input type="text" id="stock_code" name="stock_code" required>
+    <div class="container">
+        <h1>Stock Data Visualization</h1>
+        <form method="POST">
+            <div>
+                <label for="stock_code">Stock Code:</label>
+                <input type="text" id="stock_code" name="stock_code" required value="{{ stock_code }}">
+            </div>
+            <div>
+                <label for="interval">Interval:</label>
+                <select id="interval" name="interval">
+                    <option value="1d" {% if interval == '1d' %}selected{% endif %}>1 Day</option>
+                    <option value="1wk" {% if interval == '1wk' %}selected{% endif %}>1 Week</option>
+                    <option value="1mo" {% if interval == '1mo' %}selected{% endif %}>1 Month</option>
+                    <option value="3mo" {% if interval == '3mo' %}selected{% endif %}>3 Months</option>
+                </select>
+            </div>
+            <div>
+                <label for="period">Period:</label>
+                <select id="period" name="period">
+                    <option value="1d" {% if period == '1d' %}selected{% endif %}>1 Day</option>
+                    <option value="5d" {% if period == '5d' %}selected{% endif %}>5 Days</option>
+                    <option value="1mo" {% if period == '1mo' %}selected{% endif %}>1 Month</option>
+                    <option value="3mo" {% if period == '3mo' %}selected{% endif %}>3 Months</option>
+                    <option value="6mo" {% if period == '6mo' %}selected{% endif %}>6 Months</option>
+                    <option value="1y" {% if period == '1y' %}selected{% endif %}>1 Year</option>
+                    <option value="2y" {% if period == '2y' %}selected{% endif %}>2 Years</option>
+                    <option value="5y" {% if period == '5y' %}selected{% endif %}>5 Years</option>
+                    <option value="10y" {% if period == '10y' %}selected{% endif %}>10 Years</option>
+                    <option value="ytd" {% if period == 'ytd' %}selected{% endif %}>Year to Date</option>
+                    <option value="max" {% if period == 'max' %}selected{% endif %}>Max</option>
+                </select>
+            </div>
+            <div class="toggle-container">
+                <div>
+                    <label for="fresh_toggle">Show only fresh demand zones:</label>
+                    <input type="checkbox" id="fresh_toggle" name="fresh_toggle" onchange="toggleFreshZones()" {% if fresh_toggle %}checked{% endif %}>
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <label for="interval">Interval:</label>
-                    <select id="interval" name="interval">
-                        <option value="1d">1 Day</option>
-                        <option value="1wk">1 Week</option>
-                        <option value="1mo">1 Month</option>
-                        <option value="3mo">3 Month</option>
-                    </select>
+                <div>
+                    <label for="higher_timeframe_toggle">Show higher timeframe zones:</label>
+                    <input type="checkbox" id="higher_timeframe_toggle" name="higher_timeframe_toggle" onchange="toggleHigherTimeframeZones()" {% if show_higher_timeframe_zones %}checked{% endif %}>
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <label for="period">Period:</label>
-                    <select id="period" name="period" value="1y">
-                        <option value="1d">1 Day</option>
-                        <option value="5d">5 Days</option>
-                        <option value="1mo">1 Month</option>
-                        <option value="3mo">3 Months</option>
-                        <option value="6mo">6 Months</option>
-                        <option value="1y" selected>1 Year</option>
-                        <option value="2y">2 Years</option>
-                        <option value="5y">5 Years</option>
-                        <option value="10y">10 Years</option>
-                        <option value="ytd">Year to Date</option>
-                        <option value="max">Max</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <button type="submit">Get Data</button>
-                </div>
-            </form>
-        </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <label for="fresh_toggle">Show only fresh demand zones:</label>
-            <input type="checkbox" id="fresh_toggle" name="fresh_toggle" onchange="toggleFreshZones()">
-        </div>
-        <div class="chart" id="chart_container">
-            <h2 style="text-align: center;">Candlestick Chart</h2>
-            <div id="chart_all_zones">{{ chart_all_zones|safe }}</div>
-            <div id="chart_fresh_zones" style="display:none;">{{ chart_fresh_zones|safe }}</div>
-        </div>
-        <div class="info" id="info_container" style="text-align: center;">
-            <h2>Identified Demand Zones</h2>
-            <div id="info_all_zones">{{ demand_zones_info_all|safe }}</div>
-            <div id="info_fresh_zones" style="display:none;">{{ demand_zones_info_fresh|safe }}</div>
-        </div>
+            </div>
+            <div>
+                <button type="submit">Get Data</button>
+            </div>
+        </form>
+
         {% if error %}
-            <p style="color: red; text-align: center;">Error: {{ error }}</p>
+            <p class="error">Error: {{ error }}</p>
         {% endif %}
+
+        <div class="chart" id="chart_container">
+            <h2>Candlestick Chart</h2>
+            <!-- Regular Charts -->
+            <div id="chart_all_zones" {% if show_higher_timeframe_zones %}style="display:none;"{% endif %}>
+                {{ chart_all_zones|safe }}
+            </div>
+            <div id="chart_fresh_zones" style="display:none;">
+                {{ chart_fresh_zones|safe }}
+            </div>
+            <!-- Higher Timeframe Chart -->
+            {% if chart_higher_timeframe_zones %}
+                <div id="chart_higher_timeframe_zones" {% if not show_higher_timeframe_zones %}style="display:none;"{% endif %}>
+                    {{ chart_higher_timeframe_zones|safe }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Demand Zones Information -->
+        <div class="info" id="info_container">
+            <h2>Identified Demand Zones</h2>
+            <!-- Regular Demand Zones Info -->
+            <div id="info_all_zones" {% if show_higher_timeframe_zones %}style="display:none;"{% endif %}>
+                {{ demand_zones_info_all|safe }}
+            </div>
+            <div id="info_fresh_zones" style="display:none;">
+                {{ demand_zones_info_fresh|safe }}
+            </div>
+            <!-- Higher Timeframe Demand Zones Info -->
+            {% if demand_zones_info_higher_timeframe %}
+                <div id="info_higher_timeframe_zones" {% if not show_higher_timeframe_zones %}style="display:none;"{% endif %}>
+                    {{ demand_zones_info_higher_timeframe|safe }}
+                </div>
+            {% endif %}
+        </div>
     </div>
-    
+
     <script>
         function toggleFreshZones() {
             var freshToggle = document.getElementById('fresh_toggle').checked;
@@ -71,7 +137,15 @@
             var chartFreshZones = document.getElementById('chart_fresh_zones');
             var infoAllZones = document.getElementById('info_all_zones');
             var infoFreshZones = document.getElementById('info_fresh_zones');
-            
+            var higherTimeframeToggle = document.getElementById('higher_timeframe_toggle').checked;
+            var chartHigherTimeframeZones = document.getElementById('chart_higher_timeframe_zones');
+            var infoHigherTimeframeZones = document.getElementById('info_higher_timeframe_zones');
+
+            if (higherTimeframeToggle) {
+                // Do nothing if higher timeframe toggle is on
+                return;
+            }
+
             if (freshToggle) {
                 chartAllZones.style.display = 'none';
                 chartFreshZones.style.display = 'block';
@@ -84,6 +158,56 @@
                 infoFreshZones.style.display = 'none';
             }
         }
+
+        function toggleHigherTimeframeZones() {
+            var higherTimeframeToggle = document.getElementById('higher_timeframe_toggle').checked;
+            var chartAllZones = document.getElementById('chart_all_zones');
+            var chartFreshZones = document.getElementById('chart_fresh_zones');
+            var chartHigherTimeframeZones = document.getElementById('chart_higher_timeframe_zones');
+            var infoAllZones = document.getElementById('info_all_zones');
+            var infoFreshZones = document.getElementById('info_fresh_zones');
+            var infoHigherTimeframeZones = document.getElementById('info_higher_timeframe_zones');
+            var freshToggle = document.getElementById('fresh_toggle');
+
+            if (higherTimeframeToggle) {
+                chartAllZones.style.display = 'none';
+                chartFreshZones.style.display = 'none';
+                if (chartHigherTimeframeZones) {
+                    chartHigherTimeframeZones.style.display = 'block';
+                }
+                infoAllZones.style.display = 'none';
+                infoFreshZones.style.display = 'none';
+                if (infoHigherTimeframeZones) {
+                    infoHigherTimeframeZones.style.display = 'block';
+                }
+                // Disable fresh toggle
+                freshToggle.disabled = true;
+            } else {
+                chartAllZones.style.display = freshToggle.checked ? 'none' : 'block';
+                chartFreshZones.style.display = freshToggle.checked ? 'block' : 'none';
+                if (chartHigherTimeframeZones) {
+                    chartHigherTimeframeZones.style.display = 'none';
+                }
+                infoAllZones.style.display = freshToggle.checked ? 'none' : 'block';
+                infoFreshZones.style.display = freshToggle.checked ? 'block' : 'none';
+                if (infoHigherTimeframeZones) {
+                    infoHigherTimeframeZones.style.display = 'none';
+                }
+                // Enable fresh toggle
+                freshToggle.disabled = false;
+            }
+        }
+
+        // Initialize toggles based on server-side values
+        window.onload = function() {
+            var freshToggle = document.getElementById('fresh_toggle').checked;
+            var higherTimeframeToggle = document.getElementById('higher_timeframe_toggle').checked;
+            if (higherTimeframeToggle) {
+                toggleHigherTimeframeZones();
+            } else if (freshToggle) {
+                toggleFreshZones();
+            }
+        };
     </script>
 </body>
 </html>
