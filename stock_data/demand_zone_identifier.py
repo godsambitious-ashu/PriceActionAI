@@ -1,4 +1,5 @@
 import logging
+import pandas as pd
 
 class DemandZoneIdentifier:
     @staticmethod
@@ -10,6 +11,10 @@ class DemandZoneIdentifier:
 
         # Define Gap-Up Candles
         stock_data['GapUpCandle'] = stock_data['Open'] > stock_data['Close'].shift(1) * (1 + gap_threshold)
+
+        # Define Exciting Candles (Assuming 'ExcitingCandle' is pre-defined in stock_data)
+        # If not, define criteria for ExcitingCandle here
+        # Example: stock_data['ExcitingCandle'] = (stock_data['Close'] > stock_data['Open'] * 1.02) | (stock_data['Close'] < stock_data['Open'] * 0.98)
 
         # Define the intervals that allow up to 6 base candles
         extended_intervals = ['1m', '3m', '6m', '1y', '2y', '5y', '10y']
@@ -26,6 +31,55 @@ class DemandZoneIdentifier:
 
             # Check if the first candle is an exciting candle or a gap-up candle
             first_candle_condition = stock_data.iloc[i]['ExcitingCandle'] or stock_data.iloc[i]['GapUpCandle']
+
+            # New Condition: Check for Red Exciting Candle followed by Green Exciting Candle
+            is_red_exciting = stock_data.iloc[i]['ExcitingCandle'] and (stock_data.iloc[i]['Close'] < stock_data.iloc[i]['Open'])
+            if is_red_exciting and (i + 1 < n):
+                next_candle = stock_data.iloc[i + 1]
+                is_green_exciting = next_candle['ExcitingCandle'] and (next_candle['Close'] > next_candle['Open'])
+                closes_above_first_open = next_candle['Close'] > stock_data.iloc[i]['Open']
+                if is_green_exciting and closes_above_first_open:
+                    logging.debug(f"Found red exciting candle at index {i} and green exciting candle at index {i+1}")
+
+                    proximal = next_candle['Open']  # Proximal line is opening price of green exciting candle
+                    distal = min(stock_data.iloc[i]['Low'], next_candle['Low'])  # Distal line is lowest wick of the two candles
+
+                    # Calculate score based on subsequent exciting or gap-up candles
+                    score = 0
+                    k = i + 2
+                    while k < n:
+                        if stock_data.iloc[k]['ExcitingCandle'] and stock_data.iloc[k]['Close'] > stock_data.iloc[k]['Open']:
+                            score += 1
+                        elif stock_data.iloc[k]['GapUpCandle']:
+                            score += 2
+                        else:
+                            break
+                        k += 1
+
+                    # Append the identified pattern
+                    patterns.append({
+                        'zone_id': zone_id,
+                        'dates': stock_data.index[i:i+2],
+                        'proximal': proximal,
+                        'distal': distal,
+                        'score': score,
+                        'candles': [
+                            {
+                                'date': stock_data.index[i],
+                                'type': 'First (Red Exciting)',
+                                'ohlc': stock_data.iloc[i][['Open', 'High', 'Low', 'Close']].round(2).to_dict()
+                            },
+                            {
+                                'date': stock_data.index[i+1],
+                                'type': 'Second (Green Exciting)',
+                                'ohlc': stock_data.iloc[i+1][['Open', 'High', 'Low', 'Close']].round(2).to_dict()
+                            }
+                        ]
+                    })
+                    logging.debug(f"Pattern identified with dates: {stock_data.index[i:i+2]} and prices: proximal={proximal}, distal={distal}, score={score}")
+                    zone_id += 1
+                    i += 2  # Move past the two candles of the identified pattern
+                    continue  # Proceed to the next iteration
 
             if first_candle_condition:
                 logging.debug(f"Found first candle at index {i} with date {stock_data.index[i]}")
