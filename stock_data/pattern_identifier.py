@@ -1,6 +1,6 @@
 import pandas as pd
 
-class PatternIdentifier:
+class CandleIdentifier:
     @staticmethod
     def add_candle_identifiers(stock_data, base_candle_pct, exciting_candle_pct):
         base_candle_threshold = base_candle_pct / 100.0
