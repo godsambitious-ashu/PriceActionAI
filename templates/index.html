@@ -5,28 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Basic styling for better presentation */
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .form-section, .charts-section, .info-section { margin-bottom: 40px; }
+        .chart-container, .info-container { margin-bottom: 30px; }
+        .toggle-section { text-align: center; margin-bottom: 20px; }
+        .error { color: red; text-align: center; }
+    </style>
 </head>
 <body>
-    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center;">
+    <div class="container">
+        <!-- **1. Form Section** -->
+        <div class="form-section" style="text-align: center;">
             <h1>Stock Data Visualization</h1>
-            <form method="POST" style="display: flex; flex-direction: column; align-items: center;">
-                <div style="margin-bottom: 10px;">
-                    <label for="stock_code">Stock Code:</label>
-                    <input type="text" id="stock_code" name="stock_code" required>
+            <form method="POST" style="display: inline-block; text-align: left;">
+                <div style="margin-bottom: 15px;">
+                    <label for="stock_code">Stock Code:</label><br>
+                    <input type="text" id="stock_code" name="stock_code" required style="width: 100%; padding: 8px;">
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <label for="interval">Interval:</label>
-                    <select id="interval" name="interval">
-                        <option value="1d">1 Day</option>
-                        <option value="1wk">1 Week</option>
-                        <option value="1mo">1 Month</option>
-                        <option value="3mo">3 Month</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 10px;">
-                    <label for="period">Period:</label>
-                    <select id="period" name="period" value="1y">
+                <div style="margin-bottom: 15px;">
+                    <label for="period">Period:</label><br>
+                    <select id="period" name="period" required style="width: 100%; padding: 8px;">
                         <option value="1d">1 Day</option>
                         <option value="5d">5 Days</option>
                         <option value="1mo">1 Month</option>
@@ -40,37 +41,80 @@
                         <option value="max">Max</option>
                     </select>
                 </div>
-                <div style="margin-bottom: 20px;">
-                    <button type="submit">Get Data</button>
+                <div style="text-align: center;">
+                    <button type="submit" style="padding: 10px 20px;">Get Data</button>
                 </div>
             </form>
         </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <label for="fresh_toggle">Show only fresh demand zones:</label>
-            <input type="checkbox" id="fresh_toggle" name="fresh_toggle" onchange="toggleFreshZones()">
-        </div>
-        <div class="chart" id="chart_container">
-            <h2 style="text-align: center;">Candlestick Chart</h2>
-            <div id="chart_all_zones">{{ chart_all_zones|safe }}</div>
-            <div id="chart_fresh_zones" style="display:none;">{{ chart_fresh_zones|safe }}</div>
-        </div>
-        <div class="info" id="info_container" style="text-align: center;">
-            <h2>Identified Demand Zones</h2>
-            <div id="info_all_zones">{{ demand_zones_info_all|safe }}</div>
-            <div id="info_fresh_zones" style="display:none;">{{ demand_zones_info_fresh|safe }}</div>
-        </div>
+
+        <!-- **2. Charts Section** -->
+        {% if charts %}
+            <div class="charts-section">
+                <h2 style="text-align: center;">Candlestick Charts</h2>
+                {% for interval, chart_data in charts.items() %}
+                    <div class="chart-container">
+                        <h3 style="text-align: center;">{{ interval }} Interval</h3>
+                        <div class="toggle-section">
+                            <label for="fresh_toggle_{{ interval }}">Show only fresh demand zones:</label>
+                            <input type="checkbox" id="fresh_toggle_{{ interval }}" name="fresh_toggle" onchange="toggleFreshZones('{{ interval }}')">
+                        </div>
+                        <div id="chart_all_zones_{{ interval }}">
+                            {{ chart_data.all_zones | safe }}
+                        </div>
+                        <div id="chart_fresh_zones_{{ interval }}" style="display:none;">
+                            {{ chart_data.fresh_zones | safe }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- **3. Information Section** -->
+        {% if demand_zones_info %}
+            <div class="info-section">
+                <h2 style="text-align: center;">Identified Demand Zones</h2>
+                {% for interval, info_data in demand_zones_info.items() %}
+                    <div class="info-container">
+                        <h3 style="text-align: center;">{{ interval }} Interval</h3>
+                        <div id="info_all_zones_{{ interval }}">
+                            <h4>All Demand Zones:</h4>
+                            <pre>{{ info_data.all_zones_info }}</pre>
+                        </div>
+                        <div id="info_fresh_zones_{{ interval }}" style="display:none;">
+                            <h4>Fresh Demand Zones:</h4>
+                            <pre>{{ info_data.fresh_zones_info }}</pre>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- **4. Combined Stock Data Section** -->
+        {% if stock_data_str %}
+            <div class="stock-data-section" style="text-align: center;">
+                <h2>Combined Stock Data:</h2>
+                <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px;">{{ stock_data_str }}</pre>
+            </div>
+        {% endif %}
+
+        <!-- **5. Error Handling** -->
         {% if error %}
-            <p style="color: red; text-align: center;">Error: {{ error }}</p>
+            <p class="error">Error: {{ error }}</p>
         {% endif %}
     </div>
-    
+
+    <!-- **6. JavaScript for Toggle Functionality** -->
     <script>
-        function toggleFreshZones() {
-            var freshToggle = document.getElementById('fresh_toggle').checked;
-            var chartAllZones = document.getElementById('chart_all_zones');
-            var chartFreshZones = document.getElementById('chart_fresh_zones');
-            var infoAllZones = document.getElementById('info_all_zones');
-            var infoFreshZones = document.getElementById('info_fresh_zones');
+        /**
+         * Toggles the display of all zones and fresh zones charts and info for a given interval.
+         * @param {string} interval - The interval identifier (e.g., '1m', '1d', '1wk').
+         */
+        function toggleFreshZones(interval) {
+            var freshToggle = document.getElementById('fresh_toggle_' + interval).checked;
+            var chartAllZones = document.getElementById('chart_all_zones_' + interval);
+            var chartFreshZones = document.getElementById('chart_fresh_zones_' + interval);
+            var infoAllZones = document.getElementById('info_all_zones_' + interval);
+            var infoFreshZones = document.getElementById('info_fresh_zones_' + interval);
             
             if (freshToggle) {
                 chartAllZones.style.display = 'none';
