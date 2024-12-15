@@ -13,7 +13,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # Define the hardcoded intervals
-HARDCODED_INTERVALS = ['1d', '1mo', '1wk']
+HARDCODED_INTERVALS = ['1d', '1wk', '1mo']
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
