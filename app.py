@@ -13,7 +13,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # Define the hardcoded intervals in order of higher to lower timeframe
-HARDCODED_INTERVALS = ['1mo', '1wk', '1d']
+HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -26,7 +26,6 @@ def index():
         try:
             charts = {}
             demand_zones_info = {}
-            stock_data_combined = ""
             plotter = Plotter()  # Initialize Plotter instance
 
             # Initialize a single DemandZoneManager instance
@@ -42,11 +41,9 @@ def index():
                 # Step 1: Create the base candlestick chart
                 base_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
                 dz_manager_all.fig = base_fig  # Update the figure in the manager
-                logging.debug("Updated DemandZoneManager's figure")
 
                 # Step 2: Identify and mark all demand zones
                 demand_zones_all = dz_manager_all.identify_demand_zones(stock_data, interval, fresh=False)
-                logging.debug(f"Data fetched successfully for demandzones_all: {demand_zones_all}")
 
                 # Use the updated method to handle merging for "all zones"
                 demand_zones_all = dz_manager_all.include_higher_tf_zones_in_lower_tf_zones(interval, demand_zones_all, zone_type='all')
