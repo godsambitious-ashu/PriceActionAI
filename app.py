@@ -1,6 +1,5 @@
 # /Users/ashutosh/workspace/flask_stock_app/GIt/flask_stock_app/app.py
 
-import pprint
 from flask import Flask, request, render_template
 from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
@@ -13,7 +12,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # Define the hardcoded intervals
-HARDCODED_INTERVALS = ['1d', '1wk', '1mo']
+HARDCODED_INTERVALS = ['1mo', '1wk', '1d']
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -27,7 +26,7 @@ def index():
             charts = {}
             demand_zones_info = {}
             stock_data_combined = ""
-
+            monthly_zones = []
             plotter = Plotter()  # Initialize Plotter instance
 
             for interval in HARDCODED_INTERVALS:
@@ -51,7 +50,15 @@ def index():
                 # Step 2: Identify and mark all demand zones
                 dz_manager_all = DemandZoneManager(stock_code, base_fig)
                 demand_zones_all = dz_manager_all.identify_demand_zones(stock_data, interval, fresh=False)
-
+                logging.debug(f"Data fetched successfully for demandzonesall {demand_zones_all}")
+                if interval == '1mo':
+                    # Store monthly zones for later use
+                    monthly_zones = demand_zones_all
+                elif interval == '1d':
+                    # Check if we have monthly_zones already stored
+                    if monthly_zones is not None:
+                        # Merge monthly_zones into the daily demand_zones_all
+                        demand_zones_all = dz_manager_all.merge_monthly_zones_into_daily(monthly_zones, demand_zones_all)
                 fig_all_zones = dz_manager_all.mark_demand_zones_on_chart(demand_zones_all)
                 chart_all_zones = pio.to_html(fig_all_zones, full_html=False)
                 demand_zones_info_all = dz_manager_all.generate_demand_zones_info(demand_zones_all)

@@ -18,6 +18,30 @@ class DemandZoneManager:
         self.fig = fig
         self.colors = itertools.cycle(['purple', 'cyan', 'magenta', 'yellow', 'green', 'red'])
 
+    
+    def merge_monthly_zones_into_daily(self, monthly_zones, daily_zones):
+        """
+        This method takes in two lists of demand zone dictionaries:
+        - monthly_zones: Demand zones identified for the monthly interval
+        - daily_zones: Demand zones identified for the daily interval
+
+        It merges all monthly zone data into the daily zones list.
+
+        After calling this method, daily_zones will contain both its original data 
+        plus the zones copied from monthly_zones.
+        """
+        if not monthly_zones or not isinstance(monthly_zones, list):
+            # No monthly zones or invalid data
+            return daily_zones
+
+        if not daily_zones or not isinstance(daily_zones, list):
+            # If daily_zones is empty or invalid, just return monthly_zones as the final list
+            return monthly_zones
+
+        # Append all monthly zones to the daily zones
+        daily_zones.extend(monthly_zones)
+        return daily_zones    
+
     def identify_demand_zones(self, stock_data, interval, fresh=False):
         """
         Identifies demand zones from the stock data.
