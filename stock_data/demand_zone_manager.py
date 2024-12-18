@@ -17,7 +17,9 @@ class DemandZoneManager:
         self.stock_code = stock_code
         self.fig = fig
         self.colors = itertools.cycle(['purple', 'cyan', 'magenta', 'yellow', 'green', 'red'])
-        self.monthly_zones = []  # Initialize monthly_zones as an empty list
+        self.monthly_zones_all = []    # For "all zones"
+        self.monthly_zones_fresh = []  # For "fresh zones"
+
 
     def merge_monthly_zones_into_daily(self, monthly_zones, daily_zones):
         """
@@ -40,13 +42,37 @@ class DemandZoneManager:
         logging.debug(f"Merged {len(monthly_zones)} monthly zones into daily zones. Total zones: {len(merged_zones)}")
         return merged_zones
     
-    def includeHigherTfDzInLDailyDz(self, interval, demand_zones_all):
+
+    def include_higher_tf_zones_in_lower_tf_zones(self, interval, demand_zones, zone_type='all'):
+        """
+        Includes higher timeframe demand zones into lower timeframe demand zones.
+
+        Args:
+            interval (str): The current interval being processed ('1mo', '1wk', '1d').
+            demand_zones (list): List of demand zones for the current interval.
+            zone_type (str): Type of zones being processed ('all' or 'fresh').
+
+        Returns:
+            list: Updated list of demand zones after merging if applicable.
+        """
+        logging.debug(f"Called include_higher_tf_zones_in_lower_tf_zones with interval: {interval}, zone_type: {zone_type}")
         if interval == '1mo':
-            self.monthly_zones = demand_zones_all
+            if zone_type == 'all':
+                self.monthly_zones_all = demand_zones
+                logging.debug(f"Stored monthly_zones_all: {self.monthly_zones_all}")
+            elif zone_type == 'fresh':
+                self.monthly_zones_fresh = demand_zones
+                logging.debug(f"Stored monthly_zones_fresh: {self.monthly_zones_fresh}")
         elif interval == '1d':
-            if self.monthly_zones:
-                demand_zones_all = self.merge_monthly_zones_into_daily(self.monthly_zones, demand_zones_all)
-        return demand_zones_all
+            if zone_type == 'all' and self.monthly_zones_all:
+                logging.debug("Merging monthly_zones_all into daily_zones_all")
+                demand_zones = self.merge_monthly_zones_into_daily(self.monthly_zones_all, demand_zones)
+            elif zone_type == 'fresh' and self.monthly_zones_fresh:
+                logging.debug("Merging monthly_zones_fresh into daily_zones_fresh")
+                demand_zones = self.merge_monthly_zones_into_daily(self.monthly_zones_fresh, demand_zones)
+            else:
+                logging.debug(f"No {zone_type}_zones to merge into daily_zones")
+        return demand_zones
 
     def identify_demand_zones(self, stock_data, interval, fresh=False):
         """

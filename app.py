@@ -30,7 +30,6 @@ def index():
             plotter = Plotter()  # Initialize Plotter instance
 
             # Initialize a single DemandZoneManager instance
-            # Note: Pass the first figure or None; we'll update 'fig' as needed
             dz_manager_all = DemandZoneManager(stock_code, None)
 
             for interval in HARDCODED_INTERVALS:
@@ -51,15 +50,16 @@ def index():
                 # Step 1: Create the base candlestick chart
                 base_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
                 dz_manager_all.fig = base_fig  # Update the figure in the manager
+                logging.debug("Updated DemandZoneManager's figure")
 
                 # Step 2: Identify and mark all demand zones
                 demand_zones_all = dz_manager_all.identify_demand_zones(stock_data, interval, fresh=False)
-                logging.debug(f"Data fetched successfully for demandzonesall {demand_zones_all}")
+                logging.debug(f"Data fetched successfully for demandzones_all: {demand_zones_all}")
 
-                # Use the updated method to handle merging
-                demand_zones_all = dz_manager_all.includeHigherTfDzInLDailyDz(interval, demand_zones_all)
+                # Use the updated method to handle merging for "all zones"
+                demand_zones_all = dz_manager_all.include_higher_tf_zones_in_lower_tf_zones(interval, demand_zones_all, zone_type='all')
 
-                # Proceed to mark the zones on the chart
+                # Proceed to mark the "all zones" on the chart
                 fig_all_zones = dz_manager_all.mark_demand_zones_on_chart(demand_zones_all)
                 chart_all_zones = pio.to_html(fig_all_zones, full_html=False)
                 demand_zones_info_all = dz_manager_all.generate_demand_zones_info(demand_zones_all)
@@ -69,6 +69,12 @@ def index():
                 fresh_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
                 dz_manager_fresh = DemandZoneManager(stock_code, fresh_fig)
                 demand_zones_fresh = dz_manager_fresh.identify_demand_zones(stock_data, interval, fresh=True)
+                logging.debug(f"Data fetched successfully for demandzones_fresh: {demand_zones_fresh}")
+
+                # Use the updated method to handle merging for "fresh zones"
+                demand_zones_fresh = dz_manager_all.include_higher_tf_zones_in_lower_tf_zones(interval, demand_zones_fresh, zone_type='fresh')
+
+                # Proceed to mark the "fresh zones" on the chart
                 fig_fresh_zones = dz_manager_fresh.mark_demand_zones_on_chart(demand_zones_fresh)
                 chart_fresh_zones = pio.to_html(fig_fresh_zones, full_html=False)
                 demand_zones_info_fresh = dz_manager_fresh.generate_demand_zones_info(demand_zones_fresh)

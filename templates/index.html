@@ -69,26 +69,6 @@
             </div>
         {% endif %}
 
-        <!-- **3. Information Section** -->
-        {% if demand_zones_info %}
-            <div class="info-section">
-                <h2 style="text-align: center;">Identified Demand Zones</h2>
-                {% for interval, info_data in demand_zones_info.items() %}
-                    <div class="info-container">
-                        <h3 style="text-align: center;">{{ interval }} Interval</h3>
-                        <div id="info_all_zones_{{ interval }}">
-                            <h4>All Demand Zones:</h4>
-                            <pre>{{ info_data.all_zones_info }}</pre>
-                        </div>
-                        <div id="info_fresh_zones_{{ interval }}" style="display:none;">
-                            <h4>Fresh Demand Zones:</h4>
-                            <pre>{{ info_data.fresh_zones_info }}</pre>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
     <!-- **6. JavaScript for Toggle Functionality** -->
     <script>
         /**
