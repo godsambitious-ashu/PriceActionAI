@@ -17,30 +17,36 @@ class DemandZoneManager:
         self.stock_code = stock_code
         self.fig = fig
         self.colors = itertools.cycle(['purple', 'cyan', 'magenta', 'yellow', 'green', 'red'])
+        self.monthly_zones = []  # Initialize monthly_zones as an empty list
 
-    
     def merge_monthly_zones_into_daily(self, monthly_zones, daily_zones):
         """
-        This method takes in two lists of demand zone dictionaries:
-        - monthly_zones: Demand zones identified for the monthly interval
-        - daily_zones: Demand zones identified for the daily interval
+        Merges monthly demand zones into daily demand zones.
 
-        It merges all monthly zone data into the daily zones list.
+        Args:
+            monthly_zones (list): List of monthly demand zone dictionaries.
+            daily_zones (list): List of daily demand zone dictionaries.
 
-        After calling this method, daily_zones will contain both its original data 
-        plus the zones copied from monthly_zones.
+        Returns:
+            list: Merged list of daily and monthly demand zones.
         """
-        if not monthly_zones or not isinstance(monthly_zones, list):
-            # No monthly zones or invalid data
+        if not isinstance(monthly_zones, list) or not isinstance(daily_zones, list):
+            logging.error("monthly_zones and daily_zones must be lists")
             return daily_zones
 
-        if not daily_zones or not isinstance(daily_zones, list):
-            # If daily_zones is empty or invalid, just return monthly_zones as the final list
-            return monthly_zones
-
-        # Append all monthly zones to the daily zones
-        daily_zones.extend(monthly_zones)
-        return daily_zones    
+        # Optional: Implement logic to prevent duplicates or conflicts
+        merged_zones = daily_zones.copy()  # To avoid modifying the original list
+        merged_zones.extend(monthly_zones)
+        logging.debug(f"Merged {len(monthly_zones)} monthly zones into daily zones. Total zones: {len(merged_zones)}")
+        return merged_zones
+    
+    def includeHigherTfDzInLDailyDz(self, interval, demand_zones_all):
+        if interval == '1mo':
+            self.monthly_zones = demand_zones_all
+        elif interval == '1d':
+            if self.monthly_zones:
+                demand_zones_all = self.merge_monthly_zones_into_daily(self.monthly_zones, demand_zones_all)
+        return demand_zones_all
 
     def identify_demand_zones(self, stock_data, interval, fresh=False):
         """

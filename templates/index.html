@@ -89,20 +89,6 @@
             </div>
         {% endif %}
 
-        <!-- **4. Combined Stock Data Section** -->
-        {% if stock_data_str %}
-            <div class="stock-data-section" style="text-align: center;">
-                <h2>Combined Stock Data:</h2>
-                <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px;">{{ stock_data_str }}</pre>
-            </div>
-        {% endif %}
-
-        <!-- **5. Error Handling** -->
-        {% if error %}
-            <p class="error">Error: {{ error }}</p>
-        {% endif %}
-    </div>
-
     <!-- **6. JavaScript for Toggle Functionality** -->
     <script>
         /**
