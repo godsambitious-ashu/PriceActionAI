@@ -73,6 +73,7 @@ class CandleStickUtils:
             name='Exciting Candles'
         ))
         logging.debug("Exciting candles highlighted")
+        
         return fig
     
     @staticmethod

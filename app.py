@@ -39,14 +39,6 @@ def index():
                 stock_data = DataFetcher.fetch_stock_data(stock_code, interval=interval, period=period)
                 logging.debug(f"Data fetched successfully for interval {interval}")
 
-                # Generate a string representation of the stock data
-                stock_data_str = "\n".join([
-                    f"{idx.date()} Open: {row['Open']} High: {row['High']} Low: {row['Low']} Close: {row['Close']}"
-                    for idx, row in stock_data.iterrows()
-                ])
-                logging.debug(f"Initial Stock Data for {interval}:\n{stock_data_str}")
-                stock_data_combined += f"\n--- {interval} ---\n{stock_data_str}"
-
                 # Step 1: Create the base candlestick chart
                 base_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
                 dz_manager_all.fig = base_fig  # Update the figure in the manager
@@ -91,8 +83,7 @@ def index():
 
             return render_template('index.html', 
                                    charts=charts, 
-                                   demand_zones_info=demand_zones_info,
-                                   stock_data_str=stock_data_combined)
+                                   demand_zones_info=demand_zones_info)
         except Exception as e:
             logging.error(f"Error processing request: {e}")
             return render_template('index.html', chart=None, error=str(e))

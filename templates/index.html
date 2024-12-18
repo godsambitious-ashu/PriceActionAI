@@ -5,29 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Basic styling for better presentation */
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .form-section, .charts-section, .info-section { margin-bottom: 40px; }
-        .chart-container, .info-container { margin-bottom: 30px; }
-        .toggle-section { text-align: center; margin-bottom: 20px; }
-        .error { color: red; text-align: center; }
+        /* Reset some default styles */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header Section */
+        .form-section {
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .form-section h1 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        form div {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #34495e;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ccd0d5;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: #2980b9;
+            outline: none;
+        }
+
+        button {
+            padding: 12px 25px;
+            background-color: #2980b9;
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            background-color: #1f6391;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            margin-top: 20px;
+        }
+
+        .charts-section h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .chart-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+            overflow-x: auto; /* Allow horizontal scrolling if necessary */
+        }
+
+        .chart-container h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #34495e;
+        }
+
+        /* Toggle Switch */
+        .toggle-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .toggle-section label {
+            margin-right: 10px;
+            font-weight: 500;
+            color: #34495e;
+        }
+
+        /* Toggle Switch Styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0;
+            right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2980b9;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Error Message */
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+
+        /* Ensure Plotly charts fit within their containers */
+        .chart-container > div {
+            width: 100% !important;
+            max-width: 100%;
+            height: auto !important;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .form-section, .chart-container {
+                padding: 20px;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- **1. Form Section** -->
-        <div class="form-section" style="text-align: center;">
+        <div class="form-section">
             <h1>Stock Data Visualization</h1>
-            <form method="POST" style="display: inline-block; text-align: left;">
-                <div style="margin-bottom: 15px;">
-                    <label for="stock_code">Stock Code:</label><br>
-                    <input type="text" id="stock_code" name="stock_code" required style="width: 100%; padding: 8px;">
+            <form method="POST">
+                <div>
+                    <label for="stock_code">Stock Code:</label>
+                    <input type="text" id="stock_code" name="stock_code" placeholder="e.g., AAPL, GOOGL" required>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <label for="period">Period:</label><br>
-                    <select id="period" name="period" required style="width: 100%; padding: 8px;">
+                <div>
+                    <label for="period">Period:</label>
+                    <select id="period" name="period" required>
                         <option value="1d">1 Day</option>
                         <option value="5d">5 Days</option>
                         <option value="1mo">1 Month</option>
@@ -41,22 +229,30 @@
                         <option value="max">Max</option>
                     </select>
                 </div>
-                <div style="text-align: center;">
-                    <button type="submit" style="padding: 10px 20px;">Get Data</button>
-                </div>
+                <button type="submit">Get Data</button>
             </form>
         </div>
 
-        <!-- **2. Charts Section** -->
+        <!-- **2. Error Section (Optional)** -->
+        {% if error %}
+            <div class="error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <!-- **3. Charts Section** -->
         {% if charts %}
             <div class="charts-section">
-                <h2 style="text-align: center;">Candlestick Charts</h2>
+                <h2>Candlestick Charts</h2>
                 {% for interval, chart_data in charts.items() %}
                     <div class="chart-container">
-                        <h3 style="text-align: center;">{{ interval }} Interval</h3>
+                        <h3>{{ interval }} Interval</h3>
                         <div class="toggle-section">
                             <label for="fresh_toggle_{{ interval }}">Show only fresh demand zones:</label>
-                            <input type="checkbox" id="fresh_toggle_{{ interval }}" name="fresh_toggle" onchange="toggleFreshZones('{{ interval }}')">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="fresh_toggle_{{ interval }}" name="fresh_toggle" onchange="toggleFreshZones('{{ interval }}')">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                         <div id="chart_all_zones_{{ interval }}">
                             {{ chart_data.all_zones | safe }}
@@ -69,31 +265,29 @@
             </div>
         {% endif %}
 
-    <!-- **6. JavaScript for Toggle Functionality** -->
-    <script>
-        /**
-         * Toggles the display of all zones and fresh zones charts and info for a given interval.
-         * @param {string} interval - The interval identifier (e.g., '1m', '1d', '1wk').
-         */
-        function toggleFreshZones(interval) {
-            var freshToggle = document.getElementById('fresh_toggle_' + interval).checked;
-            var chartAllZones = document.getElementById('chart_all_zones_' + interval);
-            var chartFreshZones = document.getElementById('chart_fresh_zones_' + interval);
-            var infoAllZones = document.getElementById('info_all_zones_' + interval);
-            var infoFreshZones = document.getElementById('info_fresh_zones_' + interval);
-            
-            if (freshToggle) {
-                chartAllZones.style.display = 'none';
-                chartFreshZones.style.display = 'block';
-                infoAllZones.style.display = 'none';
-                infoFreshZones.style.display = 'block';
-            } else {
-                chartAllZones.style.display = 'block';
-                chartFreshZones.style.display = 'none';
-                infoAllZones.style.display = 'block';
-                infoFreshZones.style.display = 'none';
+        <!-- **4. JavaScript for Toggle Functionality and Resize Handling** -->
+        <script>
+            /**
+             * Toggles the display of all zones and fresh zones charts for a given interval.
+             * @param {string} interval - The interval identifier (e.g., '1m', '1d', '1wk').
+             */
+            function toggleFreshZones(interval) {
+                var freshToggle = document.getElementById('fresh_toggle_' + interval).checked;
+                var chartAllZones = document.getElementById('chart_all_zones_' + interval);
+                var chartFreshZones = document.getElementById('chart_fresh_zones_' + interval);
+                
+                if (freshToggle) {
+                    chartAllZones.style.display = 'none';
+                    chartFreshZones.style.display = 'block';
+                } else {
+                    chartAllZones.style.display = 'block';
+                    chartFreshZones.style.display = 'none';
+                }
             }
-        }
-    </script>
+
+            // Add event listener for window resize
+            window.addEventListener('resize', handleResize);
+        </script>
+    </div>
 </body>
 </html>
