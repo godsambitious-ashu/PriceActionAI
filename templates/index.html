@@ -1,3 +1,5 @@
+<!-- templates/index.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,8 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Data Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Include any additional CSS or JS files here -->
     <style>
         /* Reset some default styles */
         *, *::before, *::after {
@@ -16,7 +17,7 @@
         }
 
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: Arial, sans-serif;
             background-color: #f4f7fa;
             color: #333;
             line-height: 1.6;
@@ -90,6 +91,13 @@
 
         button:hover {
             background-color: #1f6391;
+        }
+
+        /* User Info Section */
+        .user-info {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
         }
 
         /* Charts Section */
@@ -205,7 +213,13 @@
 </head>
 <body>
     <div class="container">
-        <!-- **1. Form Section** -->
+        <!-- **1. User Information Display** -->
+        <div class="user-info">
+            <h2>Welcome, {{ name }}!</h2>
+            <p>Your email: {{ email }}</p>
+        </div>
+
+        <!-- **2. Form Section** -->
         <div class="form-section">
             <h1>Stock Data Visualization</h1>
             <form method="POST">
@@ -233,14 +247,14 @@
             </form>
         </div>
 
-        <!-- **2. Error Section (Optional)** -->
+        <!-- **3. Error Section (Optional)** -->
         {% if error %}
             <div class="error">
                 {{ error }}
             </div>
         {% endif %}
 
-        <!-- **3. Charts Section** -->
+        <!-- **4. Charts Section** -->
         {% if charts %}
             <div class="charts-section">
                 <h2>Candlestick Charts</h2>
@@ -265,7 +279,7 @@
             </div>
         {% endif %}
 
-        <!-- **4. JavaScript for Toggle Functionality and Resize Handling** -->
+        <!-- **5. JavaScript for Toggle Functionality and Resize Handling** -->
         <script>
             /**
              * Toggles the display of all zones and fresh zones charts for a given interval.
@@ -284,9 +298,6 @@
                     chartFreshZones.style.display = 'none';
                 }
             }
-
-            // Add event listener for window resize
-            window.addEventListener('resize', handleResize);
         </script>
     </div>
 </body>

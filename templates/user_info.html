@@ -1,0 +1,79 @@
+<!-- templates/user_info.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Information</title>
+    <style>
+        /* Basic styling for the form */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .form-container {
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: 1px solid #ccd0d5;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: #2980b9;
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #1f6391;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Enter Your Details</h2>
+        <form method="POST" action="{{ url_for('user_info') }}">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" placeholder="Your Name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+</body>
+</html>
