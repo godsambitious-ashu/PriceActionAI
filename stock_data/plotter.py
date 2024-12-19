@@ -22,9 +22,10 @@ class Plotter:
         # Add candle identifiers
         stock_data = CandleStickUtils.add_candle_identifiers(
             stock_data,
-            base_candle_threshold * 100,
-            exciting_candle_threshold * 100
+            base_candle_threshold ,
+            exciting_candle_threshold
         )
+        logging.debug(f"Dataframe for interval1mo {stock_data}")
 
         # Create initial candlestick chart with highlighted candles
         fig = CandleStickUtils.highlightCandlesAsExcitingOrBase(stock_data)

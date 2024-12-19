@@ -3,14 +3,14 @@ import pandas as pd
 
 class DemandZoneIdentifier:
     @staticmethod
-    def identify_demand_zones(stock_data, interval, gap_threshold=0.01):
+    def identify_demand_zones(stock_data, interval, gap_threshold=0.03):
         logging.debug("Starting to identify demand zones") 
 
         # Define Gap-Up Candles
         stock_data['GapUpCandle'] = stock_data['Open'] > stock_data['Close'].shift(1) * (1 + gap_threshold)
 
         # Define extended intervals that allow up to 6 base candles
-        extended_intervals = ['1m', '3m', '6m', '1y', '2y', '5y', '10y']
+        extended_intervals = ['1mo', '3mo', '6mo', '1y', '2y', '5y', '10y']
         max_base_candles = 6 if interval in extended_intervals else 3
 
         patterns = []

@@ -6,9 +6,7 @@ import logging
 class CandleStickUtils:
 
     @staticmethod
-    def add_candle_identifiers(stock_data, base_candle_pct, exciting_candle_pct):
-        base_candle_threshold = base_candle_pct / 100.0
-        exciting_candle_threshold = exciting_candle_pct / 100.0
+    def add_candle_identifiers(stock_data, base_candle_threshold, exciting_candle_threshold):
 
         stock_data['Body'] = abs(stock_data['Close'] - stock_data['Open'])
         stock_data['UpperWick'] = stock_data['High'] - stock_data[['Close', 'Open']].max(axis=1)
@@ -73,6 +71,7 @@ class CandleStickUtils:
             name='Exciting Candles'
         ))
         logging.debug("Exciting candles highlighted")
+        
         return fig
     
     @staticmethod
