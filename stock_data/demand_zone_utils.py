@@ -6,7 +6,7 @@ class DemandZoneUtils:
     @staticmethod
     def is_fresh_demand_zone(stock_data, zone):
         # Check if the price has never entered the demand zone after it was created
-        distal = zone['distal']
+        proximal = zone['proximal']
         end_date = stock_data.index[-1]
         zone_end_date = zone['dates'][-1]
 
@@ -15,7 +15,7 @@ class DemandZoneUtils:
             return True  # The zone is fresh because there are no dates after it
 
         for date in stock_data.loc[zone_end_date:end_date].index:
-            if stock_data.loc[date, 'Low'] <= distal:
+            if stock_data.loc[date, 'Low'] <= proximal:
                 return False
         return True
     
