@@ -7,11 +7,10 @@ class DemandZoneIdentifier:
         logging.debug("Starting to identify demand zones") 
 
         # Define Gap-Up Candles
-        stock_data['GapUpCandle'] = stock_data['Open'] > stock_data['Close'].shift(1) * (1 + gap_threshold)
 
         # Define extended intervals that allow up to 6 base candles
         extended_intervals = ['1mo', '3mo', '6mo', '1y', '2y', '5y', '10y']
-        max_base_candles = 6 if interval in extended_intervals else 3
+        max_base_candles = 5 if interval in extended_intervals else 3
 
         patterns = []
         zone_id = 1
@@ -74,7 +73,7 @@ class DemandZoneIdentifier:
         Check if the candle at index i qualifies as the 'first candle' in the pattern:
         either ExcitingCandle or GapUpCandle.
         """
-        return bool(stock_data.iloc[i]['ExcitingCandle'] or stock_data.iloc[i]['GapUpCandle'])
+        return bool(stock_data.iloc[i]['ExcitingCandle'] or stock_data.iloc[i]['GapUp'])
 
     @staticmethod
     def _attempt_red_green_pattern(stock_data, i, n, zone_id, patterns):
@@ -148,7 +147,7 @@ class DemandZoneIdentifier:
             if (
                 stock_data.iloc[j]['BaseCandle'] and 
                 not stock_data.iloc[j]['ExcitingCandle'] and 
-                not stock_data.iloc[j]['GapUpCandle']
+                not stock_data.iloc[j]['GapUp']
             ):
                 logging.debug(f"Found base candle at index {j}, date: {stock_data.index[j]}")
                 base_candles.append(stock_data.iloc[j])
@@ -178,7 +177,7 @@ class DemandZoneIdentifier:
         if j < n and DemandZoneIdentifier._is_first_candle_condition(stock_data, j):
             second_candle_is_green = stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']
             # We only proceed if the second candle is either green or GapUp
-            if second_candle_is_green or stock_data.iloc[j]['GapUpCandle']:
+            if second_candle_is_green or stock_data.iloc[j]['GapUp']:
                 logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
                 
                 zone_dates = stock_data.index[i:j+1]
@@ -186,7 +185,7 @@ class DemandZoneIdentifier:
                 
                 # Build the low_values array for distal
                 low_values = []
-                if first_candle_is_green or stock_data.iloc[i]['GapUpCandle']:
+                if first_candle_is_green or stock_data.iloc[i]['GapUp']:
                     # Include 'Low' of base candles and second candle
                     low_values.extend(candle['Low'] for candle in base_candles)
                     low_values.append(stock_data.iloc[j]['Low'])
@@ -247,7 +246,7 @@ class DemandZoneIdentifier:
         while k < n:
             if stock_data.iloc[k]['ExcitingCandle'] and stock_data.iloc[k]['Close'] > stock_data.iloc[k]['Open']:
                 score += 1
-            elif stock_data.iloc[k]['GapUpCandle']:
+            elif stock_data.iloc[k]['GapUp']:
                 score += 2
             else:
                 break
