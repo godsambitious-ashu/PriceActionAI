@@ -1,6 +1,4 @@
 # File: app.py
-
-import pprint
 from flask import Flask, request, render_template, redirect, url_for, session
 from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
