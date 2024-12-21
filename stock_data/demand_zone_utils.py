@@ -5,18 +5,41 @@ import pandas as pd
 class DemandZoneUtils:
     @staticmethod
     def is_fresh_demand_zone(stock_data, zone):
-        # Check if the price has never entered the demand zone after it was created
+        """
+        Check if the price has never entered the demand zone after it was created.
+
+        :param stock_data: DataFrame containing stock OHLC data (must include 'Low' and 'High' columns).
+        :param zone: Dict containing zone info with 'proximal', 'distal', and 'dates' (the last date is the formation date).
+        :return: True if the zone is fresh (not retested), False otherwise.
+        """
         proximal = zone['proximal']
-        end_date = stock_data.index[-1]
+        distal = zone['distal']
         zone_end_date = zone['dates'][-1]
+        end_date = stock_data.index[-1]
 
-        # Ensure that the end date of the zone is before the last date in stock_data
+        # If zone_end_date is the last known date, there's no future data to test → zone is fresh
         if zone_end_date >= end_date:
-            return True  # The zone is fresh because there are no dates after it
+            return True
 
-        for date in stock_data.loc[zone_end_date:end_date].index:
-            if stock_data.loc[date, 'Low'] <= proximal:
+        # Get the index position of zone_end_date in stock_data
+        zone_end_pos = stock_data.index.get_loc(zone_end_date)
+        # If this is the last row, there's no future candle to test
+        if zone_end_pos == len(stock_data.index) - 1:
+            return True
+
+        # Slice the DataFrame to only dates *after* the zone's formation date
+        future_dates = stock_data.index[zone_end_pos + 1:]
+
+        # If any future candle overlaps the zone [distal, proximal], it's not fresh
+        for date in future_dates:
+            candle_low = stock_data.loc[date, 'Low']
+            candle_high = stock_data.loc[date, 'High']
+            # Overlap condition for a demand zone:
+            # The candle's LOW dips at/below the zone's top (proximal)
+            # AND the candle's HIGH reaches/extends above the zone's bottom (distal)
+            if candle_low <= proximal and candle_high >= distal:
                 return False
+
         return True
     
     @staticmethod
