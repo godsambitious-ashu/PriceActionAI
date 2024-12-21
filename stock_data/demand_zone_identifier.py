@@ -131,7 +131,7 @@ class DemandZoneIdentifier:
                 f"Pattern identified with dates: {stock_data.index[i:i+2]} "
                 f"and prices: proximal={proximal}, distal={distal}, score={score}"
             )
-            return True, zone_id + 1, i + 2
+            return True, zone_id + 1, i + 1
 
         return False, zone_id, i
 
