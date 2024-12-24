@@ -192,6 +192,27 @@
             font-weight: 500;
         }
 
+        /* GPT Sections */
+        .gpt-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .gpt-answer, .gpt-auto-answer {
+            background: #fff;
+            margin: 20px auto;
+            padding: 20px;
+            width: 80%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .gpt-auto-answer {
+            border-left: 5px solid #2980b9;
+        }
+
         /* Ensure Plotly charts fit within their containers */
         .chart-container > div {
             width: 100% !important;
@@ -208,11 +229,42 @@
             button {
                 width: 100%;
             }
+
+            .gpt-section form input[type="text"] {
+                width: 80%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
+
+        <!-- === GPT Integration === -->
+        <!-- 1. GPT Search Bar at the top -->
+        <div class="gpt-section">
+            <form method="POST" action="/customgpt">
+                <input type="text" name="gpt_query" placeholder="Ask our custom GPT..." required 
+                       style="width:60%; padding:10px; margin-right:10px;">
+                <button type="submit">Ask GPT</button>
+            </form>
+        </div>
+
+        <!-- 2. Display User-Initiated GPT Answer if available -->
+        {% if gpt_answer %}
+        <div class="gpt-answer">
+            <strong>GPT says:</strong> {{ gpt_answer }}
+        </div>
+        {% endif %}
+
+        <!-- 3. Display Automatic GPT Answer if available -->
+        {% if gpt_auto_answer %}
+        <div class="gpt-auto-answer">
+            <strong>Automatic GPT Analysis:</strong> {{ gpt_auto_answer }}
+        </div>
+        {% endif %}
+        <!-- === End GPT Integration === -->
+
+
         <!-- **1. User Information Display** -->
         <div class="user-info">
             <h2>Welcome, {{ name }}!</h2>
