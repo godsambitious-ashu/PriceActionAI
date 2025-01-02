@@ -92,58 +92,89 @@ class GPTClient:
             return {}
         
         serialized = {}
-        for interval, zones in demand_zones_dict.items():
-            serialized_zones = []
-            for zone in zones:
-                serialized_zone = {}
-                for key, value in zone.items():
-                    if isinstance(value, pd.DatetimeIndex):
-                        serialized_zone[key] = value.strftime('%Y-%m-%d %H:%M:%S').tolist()
-                        logging.debug(f"Serialized pd.DatetimeIndex for key '{key}'.")
-                    elif isinstance(value, pd.Timestamp):
-                        serialized_zone[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                        logging.debug(f"Serialized pd.Timestamp for key '{key}'.")
-                    elif isinstance(value, datetime):
-                        serialized_zone[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                        logging.debug(f"Serialized datetime for key '{key}'.")
-                    elif isinstance(value, (np.float64, np.float32)):
-                        serialized_zone[key] = float(value)
-                        logging.debug(f"Serialized numpy float for key '{key}': {value}")
-                    elif isinstance(value, (np.int64, np.int32)):
-                        serialized_zone[key] = int(value)
-                        logging.debug(f"Serialized numpy int for key '{key}': {value}")
-                    elif isinstance(value, list):
-                        # Recursively serialize each item in the list
-                        serialized_list = []
-                        for item in value:
-                            if isinstance(item, dict):
-                                serialized_item = {}
-                                for sub_key, sub_value in item.items():
-                                    if isinstance(sub_value, pd.Timestamp):
-                                        serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
-                                        logging.debug(f"Serialized pd.Timestamp in list for sub_key '{sub_key}'.")
-                                    elif isinstance(sub_value, datetime):
-                                        serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
-                                        logging.debug(f"Serialized datetime in list for sub_key '{sub_key}'.")
-                                    elif isinstance(sub_value, (np.float64, np.float32)):
-                                        serialized_item[sub_key] = float(sub_value)
-                                        logging.debug(f"Serialized numpy float in list for sub_key '{sub_key}': {sub_value}")
-                                    elif isinstance(sub_value, (np.int64, np.int32)):
-                                        serialized_item[sub_key] = int(sub_value)
-                                        logging.debug(f"Serialized numpy int in list for sub_key '{sub_key}': {sub_value}")
+        for key, value in demand_zones_dict.items():
+            if isinstance(value, list):
+                # Handle list of zones
+                serialized_zones = []
+                for zone in value:
+                    serialized_zone = {}
+                    for zone_key, zone_value in zone.items():
+                        if isinstance(zone_value, pd.DatetimeIndex):
+                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S').tolist()
+                            logging.debug(f"Serialized pd.DatetimeIndex for key '{zone_key}'.")
+                        elif isinstance(zone_value, pd.Timestamp):
+                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
+                            logging.debug(f"Serialized pd.Timestamp for key '{zone_key}'.")
+                        elif isinstance(zone_value, datetime):
+                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
+                            logging.debug(f"Serialized datetime for key '{zone_key}'.")
+                        elif isinstance(zone_value, (np.float64, np.float32)):
+                            serialized_zone[zone_key] = float(zone_value)
+                            logging.debug(f"Serialized numpy float for key '{zone_key}': {zone_value}")
+                        elif isinstance(zone_value, (np.int64, np.int32)):
+                            serialized_zone[zone_key] = int(zone_value)
+                            logging.debug(f"Serialized numpy int for key '{zone_key}': {zone_value}")
+                        elif isinstance(zone_value, list):
+                            # Recursively serialize each item in the nested list
+                            serialized_list = []
+                            for item in zone_value:
+                                if isinstance(item, dict):
+                                    serialized_item = {}
+                                    for sub_key, sub_value in item.items():
+                                        if isinstance(sub_value, pd.Timestamp):
+                                            serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
+                                            logging.debug(f"Serialized pd.Timestamp in list for sub_key '{sub_key}'.")
+                                        elif isinstance(sub_value, datetime):
+                                            serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
+                                            logging.debug(f"Serialized datetime in list for sub_key '{sub_key}'.")
+                                        elif isinstance(sub_value, (np.float64, np.float32)):
+                                            serialized_item[sub_key] = float(sub_value)
+                                            logging.debug(f"Serialized numpy float in list for sub_key '{sub_key}': {sub_value}")
+                                        elif isinstance(sub_value, (np.int64, np.int32)):
+                                            serialized_item[sub_key] = int(sub_value)
+                                            logging.debug(f"Serialized numpy int in list for sub_key '{sub_key}': {sub_value}")
+                                        else:
+                                            serialized_item[sub_key] = sub_value
+                                            logging.debug(f"Unhandled type in list for sub_key '{sub_key}'. Converted to original value.")
+                                    serialized_list.append(serialized_item)
+                                else:
+                                    # Handle non-dict items in the list
+                                    if isinstance(item, (np.float64, np.float32)):
+                                        serialized_list.append(float(item))
+                                        logging.debug("Serialized numpy float in list.")
+                                    elif isinstance(item, (np.int64, np.int32)):
+                                        serialized_list.append(int(item))
+                                        logging.debug("Serialized numpy int in list.")
+                                    elif isinstance(item, datetime):
+                                        serialized_list.append(item.strftime('%Y-%m-%d %H:%M:%S'))
+                                        logging.debug("Serialized datetime in list.")
                                     else:
-                                        serialized_item[sub_key] = sub_value
-                                        logging.debug(f"Unhandled type in list for sub_key '{sub_key}'. Converted to original value.")
-                                serialized_list.append(serialized_item)
-                            else:
-                                serialized_list.append(item)
-                                logging.debug("Unhandled type in list. Appended original item.")
-                        serialized_zone[key] = serialized_list
-                    else:
-                        serialized_zone[key] = value
-                        logging.debug(f"Unhandled type for key '{key}'. Converted to original value.")
-                serialized_zones.append(serialized_zone)
-                logging.debug(f"Serialized zone: {serialized_zone}")
-            serialized[interval] = serialized_zones
-            logging.debug(f"Serialized zones for interval '{interval}': {serialized_zones}")
+                                        serialized_list.append(item)
+                                        logging.debug("Unhandled type in list. Appended original item.")
+                            serialized_zone[zone_key] = serialized_list
+                        else:
+                            serialized_zone[zone_key] = zone_value
+                            logging.debug(f"Unhandled type for key '{zone_key}'. Converted to original value.")
+                    serialized_zones.append(serialized_zone)
+                    logging.debug(f"Serialized zone: {serialized_zone}")
+                serialized[key] = serialized_zones
+                logging.debug(f"Serialized zones for key '{key}': {serialized_zones}")
+            else:
+                # Handle single values (e.g., current_market_price)
+                if isinstance(value, pd.Timestamp):
+                    serialized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                    logging.debug(f"Serialized pd.Timestamp for key '{key}'.")
+                elif isinstance(value, datetime):
+                    serialized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                    logging.debug(f"Serialized datetime for key '{key}'.")
+                elif isinstance(value, (np.float64, np.float32)):
+                    serialized[key] = float(value)
+                    logging.debug(f"Serialized numpy float for key '{key}': {value}")
+                elif isinstance(value, (np.int64, np.int32)):
+                    serialized[key] = int(value)
+                    logging.debug(f"Serialized numpy int for key '{key}': {value}")
+                else:
+                    # Handle other possible types or leave as-is
+                    serialized[key] = value
+                    logging.debug(f"Unhandled type for key '{key}'. Converted to original value.")
         return serialized

@@ -5,6 +5,8 @@ import logging
 class DataFetcher:
     @staticmethod
     def fetch_stock_data(stock_code, interval='1d', period='1y'):
+        if (interval=='1wk'):
+            period = '3mo'
         logging.debug(f"Fetching data for {stock_code} from Yahoo Finance with interval {interval} and period {period}")
         ticker = f"{stock_code}.NS"
         data = yf.Ticker(ticker).history(period=period, interval=interval)

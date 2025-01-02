@@ -32,7 +32,7 @@ class DemandZoneIdentifier:
             
             # Attempt Red Exciting Candle -> Green Exciting Candle pattern
             red_green_pattern_created, zone_id, i = DemandZoneIdentifier._attempt_red_green_pattern(
-                stock_data, i, n, zone_id, patterns
+                stock_data, i, n, zone_id, patterns, interval
             )
             if red_green_pattern_created:
                 # If the pattern was created, we've already advanced `i` by 2. Continue the main loop.
@@ -50,7 +50,7 @@ class DemandZoneIdentifier:
                 if len(base_candles) >= 1:
                     DemandZoneIdentifier._check_and_create_pattern_after_base(
                         stock_data, i, j, n, first_candle_is_green, base_candles, 
-                        patterns, zone_id
+                        patterns, zone_id, interval
                     )
                     # If a pattern was found, zone_id is incremented inside the helper; 
                     # we need the updated zone_id value.
@@ -76,7 +76,7 @@ class DemandZoneIdentifier:
         return bool(stock_data.iloc[i]['ExcitingCandle'] or stock_data.iloc[i]['GapUp'])
 
     @staticmethod
-    def _attempt_red_green_pattern(stock_data, i, n, zone_id, patterns):
+    def _attempt_red_green_pattern(stock_data, i, n, zone_id, patterns, interval):
         """
         Attempt to identify the Red Exciting Candle followed by Green Exciting Candle pattern.
         Returns a tuple: (pattern_created (bool), updated_zone_id, updated_i).
@@ -112,6 +112,7 @@ class DemandZoneIdentifier:
                 'proximal': proximal,
                 'distal': distal,
                 'score': score,
+                'interval': interval,
                 'candles': [
                     {
                         'date': stock_data.index[i],
@@ -167,7 +168,7 @@ class DemandZoneIdentifier:
         first_candle_is_green, 
         base_candles, 
         patterns, 
-        zone_id
+        zone_id, interval
     ):
         """
         Given the first candle and collected base candles, check if the next candle
@@ -205,6 +206,7 @@ class DemandZoneIdentifier:
                     'proximal': proximal,
                     'distal': distal,
                     'score': score,
+                    'interval': interval,
                     'candles': (
                         [{
                             'date': stock_data.index[i],
