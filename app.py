@@ -19,32 +19,41 @@ logging.basicConfig(level=logging.DEBUG,
 # Define the hardcoded intervals in order of higher to lower timeframe
 HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
 
+# === GPT Enable/Disable Flag ===
+ENABLE_GPT = False  # Set to False to disable GPT functionality
+# === End GPT Enable/Disable Flag ===
+
 # === OpenAI API Configuration ===
-# Hardcoded OpenAI API key for testing purposes.
-# IMPORTANT: Do NOT commit this key to any public repository.
-OPENAI_API_KEY = "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"  # Replace with your actual OpenAI API key
+# Only configure GPT if ENABLE_GPT is True
+if ENABLE_GPT:
+    # Hardcoded OpenAI API key for testing purposes.
+    # IMPORTANT: Do NOT commit this key to any public repository.
+    OPENAI_API_KEY = "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"
+      # Replace with your actual OpenAI API key
 
-# Initialize GPTClient
-try:
-    gpt_client = GPTClient(api_key=OPENAI_API_KEY)
-    logging.debug("GPTClient initialized successfully in app.py.")
-except ValueError as ve:
-    logging.error(f"GPTClient initialization failed: {ve}")
-    gpt_client = None  # Handle gracefully if GPTClient fails to initialize
-
+    # Initialize GPTClient
+    try:
+        gpt_client = GPTClient(api_key=OPENAI_API_KEY)
+        logging.debug("GPTClient initialized successfully in app.py.")
+    except ValueError as ve:
+        logging.error(f"GPTClient initialization failed: {ve}")
+        gpt_client = None  # Handle gracefully if GPTClient fails to initialize
+else:
+    gpt_client = None  # GPTClient is not initialized when GPT is disabled
+    logging.debug("GPT functionality is disabled via ENABLE_GPT flag.")
 
 def call_openai_gpt(user_query, demand_zones_fresh_dict):
     """
     Wrapper function to call GPTClient's method.
-    
+
     Args:
         user_query (str): The user's query.
         demand_zones_fresh_dict (dict): Fresh demand zones data.
-    
+
     Returns:
         str: GPT-generated response or error message.
     """
-    if not gpt_client:
+    if not ENABLE_GPT or not gpt_client:
         return "GPT functionality is not available at the moment."
     return gpt_client.call_gpt(user_query, demand_zones_fresh_dict)
 
@@ -52,11 +61,11 @@ def call_openai_gpt(user_query, demand_zones_fresh_dict):
 def prepare_gpt_zones(monthly_fresh_zones, daily_all_zones):
     """
     Combines 1mo fresh zones with 1d ALL zones that fall within the 1mo proximal-distal range.
-    
+
     Args:
         monthly_fresh_zones (list): List of fresh demand zone dicts for the 1mo interval.
         daily_all_zones (list): List of ALL demand zone dicts for the 1d interval.
-    
+
     Returns:
         dict: A dictionary in the same format your GPT client expects, e.g.:
               {
@@ -68,29 +77,29 @@ def prepare_gpt_zones(monthly_fresh_zones, daily_all_zones):
     if not monthly_fresh_zones or not daily_all_zones:
         logging.debug("prepare_gpt_zones: One or both zone lists are empty.")
         return {}
-    
+
     result = {
         "1mo": monthly_fresh_zones,
         "1d": []
     }
-    
+
     # For each 1mo fresh zone, find 1d zones that fall within proximal-distal
     for monthly_zone in monthly_fresh_zones:
         mo_proximal = monthly_zone.get('proximal')
         mo_distal = monthly_zone.get('distal')
-        
+
         if mo_proximal is None or mo_distal is None:
             logging.debug("prepare_gpt_zones: Monthly zone missing 'proximal' or 'distal'.")
             continue  # Skip zones with missing data
-        
+
         for daily_zone in daily_all_zones:
             daily_prox = daily_zone.get('proximal')
             daily_dist = daily_zone.get('distal')
-            
+
             if daily_prox is None or daily_dist is None:
                 logging.debug("prepare_gpt_zones: Daily zone missing 'proximal' or 'distal'.")
                 continue  # Skip zones with missing data
-            
+
             # Adjust logic based on how proximal and distal are defined
             # Assuming proximal is the higher price and distal is the lower price
             # So, daily_prox <= mo_proximal and daily_dist >= mo_distal
@@ -98,7 +107,7 @@ def prepare_gpt_zones(monthly_fresh_zones, daily_all_zones):
             if in_range:
                 result["1d"].append(daily_zone)
                 logging.debug(f"prepare_gpt_zones: Daily zone {daily_zone} is within monthly zone {monthly_zone}.")
-    
+
     logging.debug(f"prepare_gpt_zones: Final zones prepared for GPT: {result}")
     return result
 
@@ -128,6 +137,11 @@ def customgpt():
     Handles GPT queries by calling the OpenAI API with the user's query
     plus any fresh demand zones data.
     """
+    if not ENABLE_GPT:
+        logging.debug("customgpt: GPT functionality is disabled via ENABLE_GPT flag.")
+        session['gpt_answer'] = "GPT functionality is disabled."
+        return redirect(url_for('index'))
+
     user_query = request.form.get('gpt_query', '').strip()
 
     if not user_query:
@@ -158,16 +172,22 @@ def index():
     logging.debug(f"User Info from Session: Name={name}, Email={email}")
 
     # === GPT Integration ===
-    if request.method == 'GET':
-        # Retrieve and remove GPT answers from session for GET requests
-        gpt_answer = session.pop('gpt_answer', None)
-        gpt_auto_answer = session.pop('gpt_auto_answer', None)
-        logging.debug(f"index(GET): Retrieved GPT answers from session: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
+    if ENABLE_GPT:
+        if request.method == 'GET':
+            # Retrieve and remove GPT answers from session for GET requests
+            gpt_answer = session.pop('gpt_answer', None)
+            gpt_auto_answer = session.pop('gpt_auto_answer', None)
+            logging.debug(f"index(GET): Retrieved GPT answers from session: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
+        else:
+            # For POST requests, retrieve without removing
+            gpt_answer = session.get('gpt_answer')
+            gpt_auto_answer = session.get('gpt_auto_answer')
+            logging.debug(f"index(POST): Retrieved GPT answers from session: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
     else:
-        # For POST requests, retrieve without removing
-        gpt_answer = session.get('gpt_answer')
-        gpt_auto_answer = session.get('gpt_auto_answer')
-        logging.debug(f"index(POST): Retrieved GPT answers from session: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
+        # If GPT is disabled, set answers to None
+        gpt_answer = None
+        gpt_auto_answer = None
+        logging.debug("GPT functionality is disabled. Setting GPT answers to None.")
     # === End GPT Integration ===
 
     if request.method == 'POST':
@@ -268,7 +288,7 @@ def index():
 
             logging.debug(f"Final zones prepared for GPT: {final_zones_for_gpt}")
 
-            if final_zones_for_gpt:
+            if ENABLE_GPT and final_zones_for_gpt:
                 # Define your final user query or approach
                 final_query = (
                     "Provide an analysis based on the 1mo fresh demand zones and the 1d all demand zones "
@@ -286,12 +306,15 @@ def index():
 
                 # Assign the final GPT answer to the local variable for immediate rendering
                 gpt_auto_answer = final_gpt_answer
-            else:
+            elif ENABLE_GPT:
                 logging.debug("No valid zones data to generate GPT auto answer.")
                 gpt_auto_answer = "No sufficient data available for automatic analysis."
+            else:
+                # GPT is disabled
+                gpt_auto_answer = None
 
             # Serialize and store the fresh demand zones in session (if needed elsewhere)
-            serialized_fresh = gpt_client.serialize_demand_zones(all_demand_zones_fresh) if gpt_client else {}
+            serialized_fresh = gpt_client.serialize_demand_zones(all_demand_zones_fresh) if ENABLE_GPT and gpt_client else {}
             session['demand_zones_fresh_dict'] = serialized_fresh
 
             return render_template(
@@ -302,7 +325,8 @@ def index():
                 email=email,
                 # === GPT Integration ===
                 gpt_answer=gpt_answer,
-                gpt_auto_answer=gpt_auto_answer
+                gpt_auto_answer=gpt_auto_answer,
+                enable_gpt=ENABLE_GPT  # Pass the flag to the template
                 # === End GPT Integration ===
             )
         except Exception as e:
@@ -315,7 +339,8 @@ def index():
                 email=email,
                 # === GPT Integration ===
                 gpt_answer=gpt_answer,
-                gpt_auto_answer=gpt_auto_answer
+                gpt_auto_answer=gpt_auto_answer,
+                enable_gpt=ENABLE_GPT  # Pass the flag to the template
                 # === End GPT Integration ===
             )
 
@@ -328,7 +353,8 @@ def index():
         email=email,
         # === GPT Integration ===
         gpt_answer=gpt_answer,
-        gpt_auto_answer=gpt_auto_answer
+        gpt_auto_answer=gpt_auto_answer,
+        enable_gpt=ENABLE_GPT  # Pass the flag to the template
         # === End GPT Integration ===
     )
 
