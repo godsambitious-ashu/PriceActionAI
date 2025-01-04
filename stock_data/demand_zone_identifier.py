@@ -168,22 +168,39 @@ class DemandZoneIdentifier:
         first_candle_is_green, 
         base_candles, 
         patterns, 
-        zone_id, interval
+        zone_id, 
+        interval
     ):
         """
         Given the first candle and collected base candles, check if the next candle
         qualifies to complete a pattern. If so, create that pattern and append to 'patterns'.
         """
+        # Define extended intervals within the method
+        extended_intervals = ['1wk' ,'1mo', '3mo', '6mo', '1y', '2y', '5y', '10y']
+
         # Check if at least one more candle exists for the second candle
         if j < n and DemandZoneIdentifier._is_first_candle_condition(stock_data, j):
             second_candle_is_green = stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']
             # We only proceed if the second candle is either green or GapUp
             if second_candle_is_green or stock_data.iloc[j]['GapUp']:
                 logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
-                
+
+                # **Add the following block for the additional condition**
+                if interval in extended_intervals:
+                    # Calculate the minimum low of the base candles
+                    min_low = min(candle['Low'] for candle in base_candles)
+                    # Check if the closing price of the second candle is above the minimum low
+                    if stock_data.iloc[j]['Close'] <= min_low:
+                        logging.debug(
+                            f"Closing price of second candle at index {j} ({stock_data.iloc[j]['Close']}) "
+                            f"is not above the minimum low of base candles ({min_low}); pattern invalid"
+                        )
+                        return  # Do not identify the pattern
+
+                # Proceed to identify and create the pattern
                 zone_dates = stock_data.index[i:j+1]
                 proximal = max(stock_data.iloc[j - 1][['Open', 'Close']])
-                
+
                 # Build the low_values array for distal
                 low_values = []
                 if first_candle_is_green or stock_data.iloc[i]['GapUp']:
@@ -195,7 +212,7 @@ class DemandZoneIdentifier:
                     low_values.append(stock_data.iloc[i]['Low'])
                     low_values.extend(candle['Low'] for candle in base_candles)
                     low_values.append(stock_data.iloc[j]['Low'])
-                
+
                 distal = min(low_values)
                 score = DemandZoneIdentifier._calculate_score(stock_data, j + 1, n)
 

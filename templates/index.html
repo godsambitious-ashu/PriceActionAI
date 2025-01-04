@@ -1,83 +1,162 @@
-<!-- templates/index.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Data Visualization</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <!-- Include any additional CSS or JS files here -->
+    <title>AI-Powered Stock Data Visualization</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
     <style>
-        /* Reset some default styles */
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        /* Global Styles */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', sans-serif;
             background-color: #f4f7fa;
             color: #333;
-            line-height: 1.6;
-            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
         }
 
-        /* Header Section */
+        /* Navbar */
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+        }
+
+        .navbar-brand {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            color: #2980b9;
+        }
+
+        /* GPT Sections */
+        .gpt-section, .gpt-answer, .gpt-auto-answer {
+            margin-bottom: 30px;
+        }
+
+        .gpt-section form {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gpt-section input[type="text"] {
+            width: 60%;
+            padding: 12px 20px;
+            border: 1px solid #ced4da;
+            border-radius: 25px 0 0 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .gpt-section input[type="text"]:focus {
+            border-color: #2980b9;
+        }
+
+        .gpt-section button {
+            padding: 12px 25px;
+            border: none;
+            background-color: #2980b9;
+            color: #fff;
+            border-radius: 0 25px 25px 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .gpt-section button:hover {
+            background-color: #1f6391;
+        }
+
+        .gpt-answer, .gpt-auto-answer {
+            background-color: #ffffff;
+            border-left: 5px solid #2980b9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .gpt-answer:hover, .gpt-auto-answer:hover {
+            transform: translateY(-5px);
+        }
+
+        /* User Info */
+        .user-info {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        /* Form Section */
         .form-section {
-            background: #fff;
+            background: #ffffff;
             padding: 30px 40px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
             margin-bottom: 50px;
+            transition: transform 0.3s;
+        }
+
+        .form-section:hover {
+            transform: translateY(-5px);
         }
 
         .form-section h1 {
             margin-bottom: 20px;
             color: #2c3e50;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
         }
 
-        form {
+        .form-section form {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        form div {
+        .form-section .form-group {
             width: 100%;
             max-width: 400px;
             margin-bottom: 20px;
+            text-align: left;
         }
 
-        label {
+        .form-section label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
             color: #34495e;
         }
 
-        input[type="text"], select {
+        .form-section input[type="text"], .form-section select {
             width: 100%;
             padding: 12px 15px;
-            border: 1px solid #ccd0d5;
+            border: 1px solid #ced4da;
             border-radius: 4px;
             font-size: 16px;
             transition: border-color 0.3s ease;
         }
 
-        input[type="text"]:focus, select:focus {
+        .form-section input[type="text"]:focus, .form-section select:focus {
             border-color: #2980b9;
             outline: none;
         }
 
-        button {
+        .form-section button {
             padding: 12px 25px;
             background-color: #2980b9;
             color: #fff;
@@ -89,15 +168,16 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        button:hover {
+        .form-section button:hover {
             background-color: #1f6391;
         }
 
-        /* User Info Section */
-        .user-info {
+        /* Error Message */
+        .error {
+            color: #e74c3c;
             text-align: center;
-            margin-bottom: 30px;
-            color: #2c3e50;
+            margin-top: 20px;
+            font-weight: 500;
         }
 
         /* Charts Section */
@@ -109,24 +189,34 @@
             text-align: center;
             margin-bottom: 30px;
             color: #2c3e50;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
         }
 
         .chart-container {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 40px;
             overflow-x: auto; /* Allow horizontal scrolling if necessary */
+            padding: 0; /* Remove padding */
+            background: transparent; /* Remove background */
+            box-shadow: none; /* Remove shadow */
+            border: none; /* Remove borders */
+        }
+
+        .chart-container + .chart-container {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
         }
 
         .chart-container h3 {
             text-align: center;
             margin-bottom: 15px;
             color: #34495e;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            text-transform: capitalize;
         }
 
-        /* Toggle Switch */
+        /* Toggle Switch Styling */
         .toggle-section {
             display: flex;
             justify-content: center;
@@ -140,7 +230,6 @@
             color: #34495e;
         }
 
-        /* Toggle Switch Styling */
         .toggle-switch {
             position: relative;
             display: inline-block;
@@ -154,7 +243,7 @@
             height: 0;
         }
 
-        .slider {
+        .toggle-switch .slider {
             position: absolute;
             cursor: pointer;
             top: 0; left: 0;
@@ -164,7 +253,7 @@
             border-radius: 24px;
         }
 
-        .slider:before {
+        .toggle-switch .slider:before {
             position: absolute;
             content: "";
             height: 18px;
@@ -176,39 +265,15 @@
             border-radius: 50%;
         }
 
-        input:checked + .slider {
+        .toggle-switch input:checked + .slider {
             background-color: #2980b9;
         }
 
-        input:checked + .slider:before {
+        .toggle-switch input:checked + .slider:before {
             transform: translateX(26px);
         }
 
-        /* Error Message */
-        .error {
-            color: #e74c3c;
-            text-align: center;
-            margin-top: 20px;
-            font-weight: 500;
-        }
-
-        /* GPT Sections */
-        .gpt-section {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .gpt-answer, .gpt-auto-answer {
-            background: #fff;
-            margin: 20px auto;
-            padding: 20px;
-            width: 80%;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            color: #2c3e50;
-            font-weight: 500;
-        }
-
+        /* GPT Auto Answer Styling */
         .gpt-auto-answer {
             border-left: 5px solid #2980b9;
         }
@@ -239,28 +304,40 @@
 <body>
     <div class="container">
 
+        <!-- === Navbar === -->
+        <nav class="navbar navbar-light">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-robot me-2"></i>AI Stock Visualizer
+                </a>
+                <!-- Optional: Add dark mode toggle here -->
+            </div>
+        </nav>
+        <!-- === End Navbar === -->
+
         <!-- === GPT Integration === -->
-        <!-- 1. GPT Search Bar at the top -->
-        <div class="gpt-section">
-            <form method="POST" action="/customgpt">
-                <input type="text" name="gpt_query" placeholder="Ask our custom GPT..." required 
-                       style="width:60%; padding:10px; margin-right:10px;">
-                <button type="submit">Ask GPT</button>
-            </form>
-        </div>
+        {% if enable_gpt %}
+            <!-- 1. GPT Search Bar at the top -->
+            <div class="gpt-section">
+                <form method="POST" action="/customgpt">
+                    <input type="text" name="gpt_query" placeholder="Ask our AI assistant..." required>
+                    <button type="submit"><i class="fas fa-paper-plane"></i> Ask GPT</button>
+                </form>
+            </div>
 
-        <!-- 2. Display User-Initiated GPT Answer if available -->
-        {% if gpt_answer %}
-        <div class="gpt-answer">
-            <strong>GPT says:</strong> {{ gpt_answer }}
-        </div>
-        {% endif %}
+            <!-- 2. Display User-Initiated GPT Answer if available -->
+            {% if gpt_answer %}
+            <div class="gpt-answer">
+                <strong>GPT says:</strong> {{ gpt_answer }}
+            </div>
+            {% endif %}
 
-        <!-- 3. Display Automatic GPT Answer if available -->
-        {% if gpt_auto_answer %}
-        <div class="gpt-auto-answer">
-            <strong>Automatic GPT Analysis:</strong> {{ gpt_auto_answer }}
-        </div>
+            <!-- 3. Display Automatic GPT Answer if available -->
+            {% if gpt_auto_answer %}
+            <div class="gpt-auto-answer">
+                <strong>Automatic GPT Analysis:</strong> {{ gpt_auto_answer }}
+            </div>
+            {% endif %}
         {% endif %}
         <!-- === End GPT Integration === -->
 
@@ -275,11 +352,11 @@
         <div class="form-section">
             <h1>Stock Data Visualization</h1>
             <form method="POST">
-                <div>
+                <div class="form-group">
                     <label for="stock_code">Stock Code:</label>
                     <input type="text" id="stock_code" name="stock_code" placeholder="e.g., AAPL, GOOGL" required>
                 </div>
-                <div>
+                <div class="form-group">
                     <label for="period">Period:</label>
                     <select id="period" name="period" required>
                         <option value="1d">1 Day</option>
@@ -295,7 +372,7 @@
                         <option value="max">Max</option>
                     </select>
                 </div>
-                <button type="submit">Get Data</button>
+                <button type="submit"><i class="fas fa-chart-line me-2"></i> Get Data</button>
             </form>
         </div>
 
@@ -351,6 +428,15 @@
                 }
             }
         </script>
+
+        <!-- Optional: Add a Footer -->
+        <footer class="text-center mt-5">
+            <p>&copy; 2025 AI-Powered Stock Data Visualization. All rights reserved.</p>
+        </footer>
+
     </div>
+
+    <!-- Bootstrap 5 JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
