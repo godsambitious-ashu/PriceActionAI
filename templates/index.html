@@ -1,442 +1,571 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI-Powered Stock Data Visualization</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome for Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <style>
-        /* Global Styles */
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7fa;
-            color: #333;
-            transition: background-color 0.3s, color 0.3s;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI-Powered Stock Data Visualization</title>
+  <!-- Bootstrap 5 CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- Font Awesome for Icons -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    rel="stylesheet"
+  />
+  <!-- Custom CSS -->
+  <style>
+    /* Global Styles */
+    body {
+      font-family: "Roboto", sans-serif;
+      background-color: #f4f7fa;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+    }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+    .container-fluid {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-        /* Navbar */
-        .navbar {
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            padding: 15px 30px;
-            border-radius: 8px;
-            margin-bottom: 40px;
-        }
+    /* Navbar */
+    .navbar {
+      background-color: #ffffff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 15px 30px;
+      border-radius: 8px;
+      margin-bottom: 40px;
+    }
 
-        .navbar-brand {
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            color: #2980b9;
-        }
+    .navbar-brand {
+      font-family: "Inter", sans-serif;
+      font-weight: 700;
+      color: #2980b9;
+    }
 
-        /* GPT Sections */
-        .gpt-section, .gpt-answer, .gpt-auto-answer {
-            margin-bottom: 30px;
-        }
+    /* Layout Containers: 
+       We'll force the sidebar to have a fixed width 
+       and push the main content accordingly. 
+    */
+    .row-main {
+      position: relative;
+      /* A row wrapper for sidebar + main content */
+    }
 
-        .gpt-section form {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    /* Sidebar */
+    .sidebar {
+      height: 80vh;
+      overflow-y: auto;
+      border-right: 1px solid #e0e0e0;
+      padding-right: 15px;
+      position: absolute; /* Let’s absolutely position it, so main content can margin-left against it. */
+      top: 0;
+      left: 0;
+      width: 240px; /* Default expanded width */
+      transition: width 0.3s;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 
-        .gpt-section input[type="text"] {
-            width: 60%;
-            padding: 12px 20px;
-            border: 1px solid #ced4da;
-            border-radius: 25px 0 0 25px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      border-bottom: 1px solid #e0e0e0;
+    }
 
-        .gpt-section input[type="text"]:focus {
-            border-color: #2980b9;
-        }
+    .sidebar-header h5 {
+      margin: 0;
+      font-size: 1rem;
+    }
 
-        .gpt-section button {
-            padding: 12px 25px;
-            border: none;
-            background-color: #2980b9;
-            color: #fff;
-            border-radius: 0 25px 25px 0;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
+    .minimize-btn {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      color: #333;
+    }
 
-        .gpt-section button:hover {
-            background-color: #1f6391;
-        }
+    .sidebar .chat-heading {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #e0e0e0;
+      transition: background-color 0.3s, padding 0.3s;
+      border-radius: 5px;
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-        .gpt-answer, .gpt-auto-answer {
-            background-color: #ffffff;
-            border-left: 5px solid #2980b9;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-        }
+    .sidebar .chat-heading:hover,
+    .sidebar .chat-heading.active {
+      background-color: #f1f1f1;
+    }
 
-        .gpt-answer:hover, .gpt-auto-answer:hover {
-            transform: translateY(-5px);
-        }
+    /* Minimized Sidebar */
+    .sidebar.minimized {
+      width: 60px; /* Minimized width */
+      padding-right: 0;
+    }
 
-        /* User Info */
-        .user-info {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #2c3e50;
-        }
+    .sidebar.minimized .chat-heading {
+      padding: 10px 10px;
+      text-align: center;
+    }
 
-        /* Form Section */
-        .form-section {
-            background: #ffffff;
-            padding: 30px 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            text-align: center;
-            margin-bottom: 50px;
-            transition: transform 0.3s;
-        }
+    /* Main Content */
+    .main-content {
+      position: relative;
+      margin-left: 240px; /* Align with the default sidebar width */
+      padding: 20px;
+      height: 80vh;
+      overflow-y: auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: margin-left 0.3s;
+    }
 
-        .form-section:hover {
-            transform: translateY(-5px);
-        }
+    .main-content.expanded {
+      margin-left: 60px; /* If sidebar is minimized */
+    }
 
-        .form-section h1 {
-            margin-bottom: 20px;
-            color: #2c3e50;
-            font-family: 'Inter', sans-serif;
-            font-weight: 600;
-        }
+    /* Chat Messages */
+    .chat-message {
+      margin-bottom: 15px;
+    }
 
-        .form-section form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+    .chat-message.user .message {
+      background-color: #d1e7dd;
+      align-self: flex-end;
+      border-radius: 20px 20px 0 20px;
+    }
 
-        .form-section .form-group {
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 20px;
-            text-align: left;
-        }
+    .chat-message.assistant .message {
+      background-color: #f8d7da;
+      align-self: flex-start;
+      border-radius: 20px 20px 20px 0;
+    }
 
-        .form-section label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #34495e;
-        }
+    .message {
+      padding: 10px 15px;
+      border-radius: 20px;
+      max-width: 70%;
+      display: inline-block;
+    }
 
-        .form-section input[type="text"], .form-section select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
+    /* Toggle Switch Styling */
+    .toggle-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 15px;
+    }
 
-        .form-section input[type="text"]:focus, .form-section select:focus {
-            border-color: #2980b9;
-            outline: none;
-        }
+    .toggle-section label {
+      margin-right: 10px;
+      font-weight: 500;
+      color: #34495e;
+    }
 
-        .form-section button {
-            padding: 12px 25px;
-            background-color: #2980b9;
-            color: #fff;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
 
-        .form-section button:hover {
-            background-color: #1f6391;
-        }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
 
-        /* Error Message */
-        .error {
-            color: #e74c3c;
-            text-align: center;
-            margin-top: 20px;
-            font-weight: 500;
-        }
+    .toggle-switch .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 24px;
+    }
 
-        /* Charts Section */
-        .charts-section {
-            margin-top: 20px;
-        }
+    .toggle-switch .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
 
-        .charts-section h2 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #2c3e50;
-            font-family: 'Inter', sans-serif;
-            font-weight: 600;
-        }
+    .toggle-switch input:checked + .slider {
+      background-color: #2980b9;
+    }
 
-        .chart-container {
-            margin-bottom: 40px;
-            overflow-x: auto; /* Allow horizontal scrolling if necessary */
-            padding: 0; /* Remove padding */
-            background: transparent; /* Remove background */
-            box-shadow: none; /* Remove shadow */
-            border: none; /* Remove borders */
-        }
+    .toggle-switch input:checked + .slider:before {
+      transform: translateX(26px);
+    }
 
-        .chart-container + .chart-container {
-            border-top: 1px solid #e0e0e0;
-            padding-top: 20px;
-        }
+    /* Error Message */
+    .error {
+      color: #e74c3c;
+      text-align: center;
+      margin-top: 20px;
+      font-weight: 500;
+    }
 
-        .chart-container h3 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #34495e;
-            font-family: 'Inter', sans-serif;
-            font-weight: 500;
-            text-transform: capitalize;
-        }
+    /* Responsive Design */
+    @media (max-width: 992px) {
+      .sidebar {
+        position: static;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+        margin-bottom: 20px;
+        height: auto;
+      }
 
-        /* Toggle Switch Styling */
-        .toggle-section {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 15px;
-        }
+      .sidebar.minimized {
+        width: 100%;
+      }
 
-        .toggle-section label {
-            margin-right: 10px;
-            font-weight: 500;
-            color: #34495e;
-        }
+      .main-content,
+      .main-content.expanded {
+        margin-left: 0;
+      }
+    }
 
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
+    @media (max-width: 600px) {
+      .form-section form input[type="text"],
+      .form-section form select {
+        width: 100%;
+      }
 
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+      .sidebar .chat-heading {
+        font-size: 14px;
+        padding: 8px 10px;
+      }
 
-        .toggle-switch .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0;
-            right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .toggle-switch .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        .toggle-switch input:checked + .slider {
-            background-color: #2980b9;
-        }
-
-        .toggle-switch input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        /* GPT Auto Answer Styling */
-        .gpt-auto-answer {
-            border-left: 5px solid #2980b9;
-        }
-
-        /* Ensure Plotly charts fit within their containers */
-        .chart-container > div {
-            width: 100% !important;
-            max-width: 100%;
-            height: auto !important;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 600px) {
-            .form-section, .chart-container {
-                padding: 20px;
-            }
-
-            button {
-                width: 100%;
-            }
-
-            .gpt-section form input[type="text"] {
-                width: 80%;
-            }
-        }
-    </style>
+      .main-content {
+        padding: 10px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
+  <div class="container-fluid">
+    <!-- === Navbar === -->
+    <nav class="navbar navbar-light">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+          <i class="fas fa-robot me-2"></i>AI Stock Visualizer
+        </a>
+      </div>
+    </nav>
+    <!-- === End Navbar === -->
 
-        <!-- === Navbar === -->
-        <nav class="navbar navbar-light">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#">
-                    <i class="fas fa-robot me-2"></i>AI Stock Visualizer
-                </a>
-                <!-- Optional: Add dark mode toggle here -->
-            </div>
-        </nav>
-        <!-- === End Navbar === -->
-
-        <!-- === GPT Integration === -->
-        {% if enable_gpt %}
-            <!-- 1. GPT Search Bar at the top -->
-            <div class="gpt-section">
-                <form method="POST" action="/customgpt">
-                    <input type="text" name="gpt_query" placeholder="Ask our AI assistant..." required>
-                    <button type="submit"><i class="fas fa-paper-plane"></i> Ask GPT</button>
-                </form>
-            </div>
-
-            <!-- 2. Display User-Initiated GPT Answer if available -->
-            {% if gpt_answer %}
-            <div class="gpt-answer">
-                <strong>GPT says:</strong> {{ gpt_answer }}
-            </div>
-            {% endif %}
-
-            <!-- 3. Display Automatic GPT Answer if available -->
-            {% if gpt_auto_answer %}
-            <div class="gpt-auto-answer">
-                <strong>Automatic GPT Analysis:</strong> {{ gpt_auto_answer }}
-            </div>
-            {% endif %}
-        {% endif %}
-        <!-- === End GPT Integration === -->
-
-
-        <!-- **1. User Information Display** -->
-        <div class="user-info">
-            <h2>Welcome, {{ name }}!</h2>
-            <p>Your email: {{ email }}</p>
+    <!-- === GPT Integration === -->
+    {% if enable_gpt %}
+    <!-- 1. GPT Search Bar at the top -->
+    <div class="gpt-section mb-4">
+      <form method="POST" action="/customgpt">
+        <div class="input-group">
+          <input
+            type="hidden"
+            name="stock_code"
+            value="{{ current_stock_code }}"
+          />
+          <input
+            type="text"
+            name="gpt_query"
+            class="form-control"
+            placeholder="Ask our AI assistant..."
+            required
+          />
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Ask GPT
+          </button>
         </div>
+      </form>
+    </div>
+    {% endif %}
+    <!-- === End GPT Integration === -->
 
-        <!-- **2. Form Section** -->
-        <div class="form-section">
-            <h1>Stock Data Visualization</h1>
-            <form method="POST">
-                <div class="form-group">
-                    <label for="stock_code">Stock Code:</label>
-                    <input type="text" id="stock_code" name="stock_code" placeholder="e.g., AAPL, GOOGL" required>
-                </div>
-                <div class="form-group">
-                    <label for="period">Period:</label>
-                    <select id="period" name="period" required>
-                        <option value="1d">1 Day</option>
-                        <option value="5d">5 Days</option>
-                        <option value="1mo">1 Month</option>
-                        <option value="3mo">3 Months</option>
-                        <option value="6mo">6 Months</option>
-                        <option value="1y" selected>1 Year</option>
-                        <option value="2y">2 Years</option>
-                        <option value="5y">5 Years</option>
-                        <option value="10y">10 Years</option>
-                        <option value="ytd">Year to Date</option>
-                        <option value="max">Max</option>
-                    </select>
-                </div>
-                <button type="submit"><i class="fas fa-chart-line me-2"></i> Get Data</button>
-            </form>
-        </div>
-
-        <!-- **3. Error Section (Optional)** -->
-        {% if error %}
-            <div class="error">
-                {{ error }}
-            </div>
-        {% endif %}
-
-        <!-- **4. Charts Section** -->
-        {% if charts %}
-            <div class="charts-section">
-                <h2>Candlestick Charts</h2>
-                {% for interval, chart_data in charts.items() %}
-                    <div class="chart-container">
-                        <h3>{{ interval }} Interval</h3>
-                        <div class="toggle-section">
-                            <label for="fresh_toggle_{{ interval }}">Show only fresh demand zones:</label>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="fresh_toggle_{{ interval }}" name="fresh_toggle" onchange="toggleFreshZones('{{ interval }}')">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div id="chart_all_zones_{{ interval }}">
-                            {{ chart_data.all_zones | safe }}
-                        </div>
-                        <div id="chart_fresh_zones_{{ interval }}" style="display:none;">
-                            {{ chart_data.fresh_zones | safe }}
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        <!-- **5. JavaScript for Toggle Functionality and Resize Handling** -->
-        <script>
-            /**
-             * Toggles the display of all zones and fresh zones charts for a given interval.
-             * @param {string} interval - The interval identifier (e.g., '1m', '1d', '1wk').
-             */
-            function toggleFreshZones(interval) {
-                var freshToggle = document.getElementById('fresh_toggle_' + interval).checked;
-                var chartAllZones = document.getElementById('chart_all_zones_' + interval);
-                var chartFreshZones = document.getElementById('chart_fresh_zones_' + interval);
-                
-                if (freshToggle) {
-                    chartAllZones.style.display = 'none';
-                    chartFreshZones.style.display = 'block';
-                } else {
-                    chartAllZones.style.display = 'block';
-                    chartFreshZones.style.display = 'none';
-                }
-            }
-        </script>
-
-        <!-- Optional: Add a Footer -->
-        <footer class="text-center mt-5">
-            <p>&copy; 2025 AI-Powered Stock Data Visualization. All rights reserved.</p>
-        </footer>
-
+    <!-- **1. User Information Display** -->
+    <div class="user-info text-center mb-4">
+      <h2>Welcome, {{ name }}!</h2>
+      <p>Your email: {{ email }}</p>
     </div>
 
-    <!-- Bootstrap 5 JS and dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- **2. Form Section** -->
+    <div class="form-section mb-5">
+      <h1>Stock Data Visualization</h1>
+      <form method="POST">
+        <div class="row g-3 justify-content-center">
+          <div class="col-md-5">
+            <label for="stock_code" class="form-label">Stock Code:</label>
+            <input
+              type="text"
+              id="stock_code"
+              name="stock_code"
+              class="form-control"
+              placeholder="e.g., AAPL, GOOGL"
+              required
+            />
+          </div>
+          <div class="col-md-5">
+            <label for="period" class="form-label">Period:</label>
+            <select id="period" name="period" class="form-select" required>
+              <option value="1d">1 Day</option>
+              <option value="5d">5 Days</option>
+              <option value="1mo">1 Month</option>
+              <option value="3mo">3 Months</option>
+              <option value="6mo">6 Months</option>
+              <option value="1y" selected>1 Year</option>
+              <option value="2y">2 Years</option>
+              <option value="5y">5 Years</option>
+              <option value="10y">10 Years</option>
+              <option value="ytd">Year to Date</option>
+              <option value="max">Max</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-chart-line me-2"></i> Get Data
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- **3. Error Section (Optional)** -->
+    {% if error %}
+    <div class="error">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- **4. Charts and Chat Section** -->
+    {% if chat_history %}
+    <div class="row-main">
+      <!-- Sidebar for Chat History -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h5>Chats</h5>
+          <button
+            class="minimize-btn"
+            id="minimizeSidebar"
+            aria-label="Minimize Sidebar"
+          >
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
+        <div id="chatList">
+          {% for chat in chat_history %}
+          {% set chat_id = loop.index0 %}
+          <div
+            class="chat-heading {% if chat_id == active_chat_id %}active{% endif %}"
+            data-chat-id="{{ chat_id }}"
+            title="{{ chat.stock_code }} - {{ chat.timestamp }}"
+          >
+            <i class="fas fa-chart-line me-2"></i>
+            <span class="chat-title">
+              {{ chat.stock_code }} - {{ chat.timestamp }}
+            </span>
+          </div>
+          {% else %}
+          <p class="p-3 text-muted">No chats yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Main Content for Selected Chat -->
+      <div class="main-content" id="mainContent">
+        {% for chat in chat_history %}
+        {% set chat_id = loop.index0 %}
+        <div
+          class="chat-panel"
+          data-chat-id="{{ chat_id }}"
+          {% if chat_id != active_chat_id %}style="display:none;"{% endif %}
+        >
+          <h4>{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
+          {% if chat.user_query %}
+          <div class="chat-message user">
+            <div class="message">
+              <strong>You:</strong> {{ chat.user_query }}
+            </div>
+          </div>
+          {% endif %}
+          {% if chat.gpt_answer %}
+          <div class="chat-message assistant">
+            <div class="message">
+              <strong>GPT:</strong> {{ chat.gpt_answer }}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Display Charts Related to This Chat (Only for Active Chat) -->
+          {% if chat_id == active_chat_id and charts %}
+          <div class="charts-section mt-4">
+            <h5>Candlestick Charts</h5>
+            {% for interval, chart_data in charts.items() %}
+            <div class="chart-container mb-4">
+              <h6>{{ interval }} Interval</h6>
+              <div class="toggle-section mb-2">
+                <label for="fresh_toggle_{{ chat_id }}_{{ interval }}"
+                  >Show only fresh demand zones:</label
+                >
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    id="fresh_toggle_{{ chat_id }}_{{ interval }}"
+                    onchange="toggleFreshZones({{ chat_id }}, '{{ interval }}')"
+                  />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div id="chart_all_zones_{{ chat_id }}_{{ interval }}">
+                {{ chart_data.all_zones | safe }}
+              </div>
+              <div
+                id="chart_fresh_zones_{{ chat_id }}_{{ interval }}"
+                style="display:none;"
+              >
+                {{ chart_data.fresh_zones | safe }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Optional: Add a Footer -->
+    <footer class="text-center mt-5">
+      <p>&copy; 2025 AI-Powered Stock Data Visualization. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <!-- JavaScript for Toggle Functionality and Chat Switching -->
+  <script>
+    /**
+     * Toggles the display of all zones and fresh zones charts for a given chat and interval.
+     * @param {number} chatId - The identifier for the chat session.
+     * @param {string} interval - The interval identifier (e.g., '1mo', '1d').
+     */
+    function toggleFreshZones(chatId, interval) {
+      var freshToggle = document.getElementById(
+        "fresh_toggle_" + chatId + "_" + interval
+      ).checked;
+      var chartAllZones = document.getElementById(
+        "chart_all_zones_" + chatId + "_" + interval
+      );
+      var chartFreshZones = document.getElementById(
+        "chart_fresh_zones_" + chatId + "_" + interval
+      );
+
+      if (freshToggle) {
+        chartAllZones.style.display = "none";
+        chartFreshZones.style.display = "block";
+      } else {
+        chartAllZones.style.display = "block";
+        chartFreshZones.style.display = "none";
+      }
+    }
+
+    /**
+     * Handles the selection of a chat from the sidebar.
+     */
+    document.addEventListener("DOMContentLoaded", function () {
+      const chatHeadings = document.querySelectorAll(".chat-heading");
+      const chatPanels = document.querySelectorAll(".chat-panel");
+      const minimizeBtn = document.getElementById("minimizeSidebar");
+      const sidebar = document.getElementById("sidebar");
+      const mainContent = document.getElementById("mainContent");
+
+      // Function to toggle sidebar
+      function toggleSidebar() {
+        sidebar.classList.toggle("minimized");
+        mainContent.classList.toggle("expanded");
+
+        // Change the icon of the minimize button
+        const icon = minimizeBtn.querySelector("i");
+        if (sidebar.classList.contains("minimized")) {
+          icon.classList.remove("fa-chevron-left");
+          icon.classList.add("fa-chevron-right");
+        } else {
+          icon.classList.remove("fa-chevron-right");
+          icon.classList.add("fa-chevron-left");
+        }
+
+        // Optional: Save sidebar state in localStorage
+        if (sidebar.classList.contains("minimized")) {
+          localStorage.setItem("sidebarMinimized", "true");
+        } else {
+          localStorage.setItem("sidebarMinimized", "false");
+        }
+      }
+
+      // Attach event listener to minimize button
+      minimizeBtn.addEventListener("click", toggleSidebar);
+
+      // Restore sidebar state from localStorage on load
+      if (localStorage.getItem("sidebarMinimized") === "true") {
+        sidebar.classList.add("minimized");
+        mainContent.classList.add("expanded");
+        const icon = minimizeBtn.querySelector("i");
+        icon.classList.remove("fa-chevron-left");
+        icon.classList.add("fa-chevron-right");
+      }
+
+      // Handle chat heading clicks
+      chatHeadings.forEach(function (heading) {
+        heading.addEventListener("click", function () {
+          // Remove active class from all headings
+          chatHeadings.forEach((h) => h.classList.remove("active"));
+          // Add active class to the clicked heading
+          this.classList.add("active");
+
+          const chatId = this.getAttribute("data-chat-id");
+
+          // Hide all chat panels
+          chatPanels.forEach((panel) => (panel.style.display = "none"));
+          // Show the selected chat panel
+          const selectedPanel = document.querySelector(
+            '.chat-panel[data-chat-id="' + chatId + '"]'
+          );
+          if (selectedPanel) {
+            selectedPanel.style.display = "block";
+          }
+        });
+      });
+    });
+  </script>
+
+  <!-- Bootstrap 5 JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
 </body>
 </html>
