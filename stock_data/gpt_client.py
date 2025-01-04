@@ -1,5 +1,3 @@
-# File: stock_data/gpt_client.py
-
 import json
 import logging
 from openai import OpenAI
@@ -36,16 +34,11 @@ class GPTClient:
         """
         # Serialize demand_zones_fresh_dict to a JSON-serializable format
         try:
-            serialized_dict = self.serialize_demand_zones(demand_zones_fresh_dict)
-            logging.debug(f"Serialized dict: {serialized_dict}")
-            demand_zones_fresh_json = json.dumps(serialized_dict, indent=2)
+            demand_zones_fresh_json = self.serialize_demand_zones(demand_zones_fresh_dict)
             logging.debug("demand_zones_fresh_dict serialized successfully.")
         except Exception as e:
             logging.error(f"Serialization error: {e}")
             return f"Sorry, there was an error processing your data: {e}"
-
-        # Log the type to ensure it's a string
-        logging.debug(f"demand_zones_fresh_json type: {type(demand_zones_fresh_json)}")
 
         # Compose the messages for the ChatCompletion API
         messages = [
@@ -77,6 +70,59 @@ class GPTClient:
             logging.error(f"OpenAI API error: {e}")
             return f"Sorry, there was an error processing your request: {e}"
 
+    def prepare_zones(self, monthly_fresh_zones, daily_all_zones):
+        """
+        Combines 1mo fresh zones with 1d ALL zones that fall within the 1mo proximal-distal range.
+
+        Args:
+            monthly_fresh_zones (list): List of fresh demand zone dicts for the 1mo interval.
+            daily_all_zones (list): List of ALL demand zone dicts for the 1d interval.
+
+        Returns:
+            dict: A dictionary in the same format your GPT client expects, e.g.:
+                  {
+                      "1mo": [...],  # Fresh monthly zones
+                      "1d": [...]    # Only those 1d zones that fall within the monthly range
+                  }
+                  or an empty dict if nothing matches.
+        """
+        if not monthly_fresh_zones or not daily_all_zones:
+            logging.debug("prepare_zones: One or both zone lists are empty.")
+            return {}
+
+        result = {
+            "1mo": monthly_fresh_zones,
+            "1d": []
+        }
+
+        # For each 1mo fresh zone, find 1d zones that fall within proximal-distal
+        for monthly_zone in monthly_fresh_zones:
+            mo_proximal = monthly_zone.get('proximal')
+            mo_distal = monthly_zone.get('distal')
+
+            if mo_proximal is None or mo_distal is None:
+                logging.debug("prepare_zones: Monthly zone missing 'proximal' or 'distal'.")
+                continue  # Skip zones with missing data
+
+            for daily_zone in daily_all_zones:
+                daily_prox = daily_zone.get('proximal')
+                daily_dist = daily_zone.get('distal')
+
+                if daily_prox is None or daily_dist is None:
+                    logging.debug("prepare_zones: Daily zone missing 'proximal' or 'distal'.")
+                    continue  # Skip zones with missing data
+
+                # Adjust logic based on how proximal and distal are defined
+                # Assuming proximal is the higher price and distal is the lower price
+                # So, daily_prox <= mo_proximal and daily_dist >= mo_distal
+                in_range = (daily_prox <= mo_proximal) and (daily_dist >= mo_distal)
+                if in_range:
+                    result["1d"].append(daily_zone)
+                    logging.debug(f"prepare_zones: Daily zone {daily_zone} is within monthly zone {monthly_zone}.")
+
+        logging.debug(f"prepare_zones: Final zones prepared for GPT: {result}")
+        return result
+
     def serialize_demand_zones(self, demand_zones_dict):
         """
         Recursively serialize the demand zones dictionary to ensure all components are JSON-serializable.
@@ -85,11 +131,11 @@ class GPTClient:
             demand_zones_dict (dict): The original demand zones data.
         
         Returns:
-            dict: A JSON-serializable version of the demand zones data.
+            str: A JSON-formatted string of the serialized demand zones.
         """
         if not isinstance(demand_zones_dict, dict):
             logging.warning("Input demand_zones_dict is not a dictionary.")
-            return {}
+            return "{}"
         
         serialized = {}
         for key, value in demand_zones_dict.items():
@@ -177,4 +223,7 @@ class GPTClient:
                     # Handle other possible types or leave as-is
                     serialized[key] = value
                     logging.debug(f"Unhandled type for key '{key}'. Converted to original value.")
-        return serialized
+        # Convert the entire serialized dictionary to a JSON string
+        serialized_json = json.dumps(serialized, indent=2)
+        logging.debug("Entire demand_zones_dict serialized to JSON successfully.")
+        return serialized_json

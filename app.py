@@ -43,81 +43,6 @@ else:
     gpt_client = None  # GPTClient is not initialized when GPT is disabled
     logging.debug("GPT functionality is disabled via ENABLE_GPT flag.")
 
-
-def call_openai_gpt(user_query, demand_zones_fresh_dict):
-    """
-    Wrapper function to call GPTClient's method.
-
-    Args:
-        user_query (str): The user's query.
-        demand_zones_fresh_dict (dict): Fresh demand zones data.
-
-    Returns:
-        str: GPT-generated response or error message.
-    """
-    if not ENABLE_GPT or not gpt_client:
-        return "GPT functionality is not available at the moment."
-    try:
-        return gpt_client.call_gpt(user_query, demand_zones_fresh_dict)
-    except Exception as e:
-        logging.error(f"Error calling GPT: {e}")
-        return "An error occurred while processing your GPT request."
-
-
-def prepare_gpt_zones(monthly_fresh_zones, daily_all_zones):
-    """
-    Combines 1mo fresh zones with 1d ALL zones that fall within the 1mo proximal-distal range.
-
-    Args:
-        monthly_fresh_zones (list): List of fresh demand zone dicts for the 1mo interval.
-        daily_all_zones (list): List of ALL demand zone dicts for the 1d interval.
-
-    Returns:
-        dict: A dictionary in the same format your GPT client expects, e.g.:
-              {
-                  "1mo": [...],  # Fresh monthly zones
-                  "1d": [...]    # Only those 1d zones that fall within the monthly range
-              }
-              or an empty dict if nothing matches.
-    """
-    if not monthly_fresh_zones or not daily_all_zones:
-        logging.debug("prepare_gpt_zones: One or both zone lists are empty.")
-        return {}
-
-    result = {
-        "1mo": monthly_fresh_zones,
-        "1d": []
-    }
-
-    # For each 1mo fresh zone, find 1d zones that fall within proximal-distal
-    for monthly_zone in monthly_fresh_zones:
-        mo_proximal = monthly_zone.get('proximal')
-        mo_distal = monthly_zone.get('distal')
-
-        if mo_proximal is None or mo_distal is None:
-            logging.debug("prepare_gpt_zones: Monthly zone missing 'proximal' or 'distal'.")
-            continue  # Skip zones with missing data
-
-        for daily_zone in daily_all_zones:
-            daily_prox = daily_zone.get('proximal')
-            daily_dist = daily_zone.get('distal')
-
-            if daily_prox is None or daily_dist is None:
-                logging.debug("prepare_gpt_zones: Daily zone missing 'proximal' or 'distal'.")
-                continue  # Skip zones with missing data
-
-            # Adjust logic based on how proximal and distal are defined
-            # Assuming proximal is the higher price and distal is the lower price
-            # So, daily_prox <= mo_proximal and daily_dist >= mo_distal
-            in_range = (daily_prox <= mo_proximal) and (daily_dist >= mo_distal)
-            if in_range:
-                result["1d"].append(daily_zone)
-                logging.debug(f"prepare_gpt_zones: Daily zone {daily_zone} is within monthly zone {monthly_zone}.")
-
-    logging.debug(f"prepare_gpt_zones: Final zones prepared for GPT: {result}")
-    return result
-
-
 @app.route('/user_info', methods=['GET', 'POST'])
 def user_info():
     if request.method == 'POST':
@@ -140,7 +65,6 @@ def user_info():
     # For GET requests, render the user info form
     return render_template('user_info.html')
 
-
 @app.route('/customgpt', methods=['POST'])
 def customgpt():
     """
@@ -162,8 +86,8 @@ def customgpt():
     # Grab the fresh zones from session (stored in index()).
     demand_zones_fresh_dict = session.get('demand_zones_fresh_dict', {})
 
-    # Call OpenAI GPT with user_query and demand_zones_fresh_dict
-    gpt_answer = call_openai_gpt(user_query, demand_zones_fresh_dict)
+    # Call GPT via GPTClient
+    gpt_answer = gpt_client.call_gpt(user_query, demand_zones_fresh_dict) if gpt_client else "GPT functionality is not available at the moment."
     logging.debug(f"customgpt: GPT Answer Generated: {gpt_answer}")
 
     # Append user message and GPT response to chat history
@@ -183,19 +107,16 @@ def customgpt():
 
     return redirect(url_for('index'))
 
-
 @app.route('/get_chat_history', methods=['GET'])
 def get_chat_history():
     chat_history = session.get('chat_history', [])
     return jsonify({'chat_history': chat_history})
-
 
 @app.route('/clear_chat', methods=['POST'])
 def clear_chat():
     session['chat_history'] = []
     logging.debug("Chat history cleared.")
     return redirect(url_for('index'))
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -209,7 +130,7 @@ def index():
     logging.debug(f"User Info from Session: Name={name}, Email={email}")
 
     # === GPT Integration ===
-    if ENABLE_GPT:
+    if ENABLE_GPT and gpt_client:
         if request.method == 'GET':
             # Retrieve and remove GPT answers from session for GET requests
             gpt_answer = session.pop('gpt_answer', None)
@@ -234,102 +155,27 @@ def index():
         logging.debug(f"Form submitted: {stock_code} with period {period}")
 
         try:
-            charts = {}
-            demand_zones_info = {}
-            plotter = Plotter()  # Initialize Plotter instance
+            # Initialize DemandZoneManager
+            dz_manager = DemandZoneManager(stock_code)
 
-            # Initialize a single DemandZoneManager instance
-            dz_manager_all = DemandZoneManager(stock_code, None)
+            # Process all intervals using the refactored DemandZoneManager
+            (
+                charts,
+                demand_zones_info,
+                all_demand_zones_fresh,
+                monthly_fresh_zones,
+                daily_all_zones,
+                current_market_price
+            ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
 
-            # Dictionary to store fresh demand zones for all intervals
-            all_demand_zones_fresh = {}
-
-            # Variables to store 1mo fresh zones and 1d all zones
-            monthly_fresh_zones = []
-            daily_all_zones = []
-            current_market_price = None  # Initialize variable to store current market price
-
-            for interval in HARDCODED_INTERVALS:
-                logging.debug(f"Processing interval: {interval}")
-
-                # Fetch stock data for the current interval
-                stock_data = DataFetcher.fetch_stock_data(stock_code, interval=interval, period=period)
-                logging.debug(f"Data fetched successfully for interval {interval}")
-
-                if stock_data.empty:
-                    logging.warning(f"No data available for stock code {stock_code} and interval {interval}.")
-                    continue  # Skip to next interval if no data
-
-                # Step 1: Create the base candlestick chart
-                base_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
-                dz_manager_all.fig = base_fig  # Update the figure in the manager
-
-                # Step 2: Identify and mark all demand zones
-                demand_zones_all = dz_manager_all.identify_demand_zones(stock_data, interval, fresh=False)
-                logging.debug(f"Identified {len(demand_zones_all)} 'all' demand zones for interval {interval}.")
-
-                # Use the updated method to handle merging for "all zones"
-                demand_zones_all = dz_manager_all.include_higher_tf_zones_in_lower_tf_zones(
-                    interval, demand_zones_all, zone_type='all'
-                )
-                logging.debug(f"After merging, {len(demand_zones_all)} 'all' demand zones remain for interval {interval}.")
-
-                # Mark the "all zones" on the chart
-                fig_all_zones = dz_manager_all.mark_demand_zones_on_chart(demand_zones_all)
-                chart_all_zones = pio.to_html(fig_all_zones, full_html=False)
-                demand_zones_info_all = dz_manager_all.generate_demand_zones_info(demand_zones_all)
-
-                # Step 3: Identify and mark fresh demand zones
-                # Create a fresh copy of the base figure to avoid overlap
-                fresh_fig = plotter.create_candlestick_chart(stock_data, stock_code, interval)
-                dz_manager_fresh = DemandZoneManager(stock_code, fresh_fig)
-                demand_zones_fresh = dz_manager_fresh.identify_demand_zones(stock_data, interval, fresh=True)
-                logging.debug(f"Identified {len(demand_zones_fresh)} 'fresh' demand zones for interval {interval}.")
-
-                # Use the updated method to handle merging for "fresh zones"
-                demand_zones_fresh = dz_manager_all.include_higher_tf_zones_in_lower_tf_zones(
-                    interval, demand_zones_fresh, zone_type='fresh'
-                )
-                logging.debug(f"After merging, {len(demand_zones_fresh)} 'fresh' demand zones remain for interval {interval}.")
-
-                # Populate all_demand_zones_fresh
-                all_demand_zones_fresh[interval] = demand_zones_fresh
-                logging.debug(f"Stored fresh demand zones for interval {interval}.")
-
-                # Capture 1mo fresh zones and 1d all zones
-                if interval == '1mo':
-                    monthly_fresh_zones = demand_zones_all
-                    logging.debug(f"Captured {len(monthly_fresh_zones)} monthly fresh zones.")
-                if interval == '1d':
-                    daily_all_zones = demand_zones_all
-                    logging.debug(f"Captured {len(daily_all_zones)} daily all zones.")
-                    # Also, capture the current market price
-                    current_market_price = stock_data.iloc[-1]['Close']
-                    logging.debug(f"Current market price for {stock_code}: {current_market_price}")
-
-                # Mark the "fresh zones" on the chart
-                fig_fresh_zones = dz_manager_fresh.mark_demand_zones_on_chart(demand_zones_fresh)
-                chart_fresh_zones = pio.to_html(fig_fresh_zones, full_html=False)
-                demand_zones_info_fresh = dz_manager_fresh.generate_demand_zones_info(demand_zones_fresh)
-
-                # Store charts in dictionaries
-                charts[interval] = {
-                    'all_zones': chart_all_zones,
-                    'fresh_zones': chart_fresh_zones
-                }
-                demand_zones_info[interval] = {
-                    'all_zones_info': demand_zones_info_all,
-                    'fresh_zones_info': demand_zones_info_fresh
-                }
-
-            # After processing all intervals, prepare the combined data for GPT
-            final_zones_for_gpt = prepare_gpt_zones(monthly_fresh_zones, daily_all_zones)
+            # After processing, prepare data for GPT
+            final_zones_for_gpt = gpt_client.prepare_zones(monthly_fresh_zones, daily_all_zones) if ENABLE_GPT and gpt_client else {}
             if current_market_price is not None:
                 final_zones_for_gpt['current_market_price'] = current_market_price
 
             logging.debug(f"Final zones prepared for GPT: {final_zones_for_gpt}")
 
-            if ENABLE_GPT and final_zones_for_gpt:
+            if ENABLE_GPT and gpt_client and final_zones_for_gpt:
                 final_query = (
                     "Provide an analysis based on the 1mo fresh demand zones and the 1d all demand zones "
                     "that lie within the 1mo zones' proximal-distal range. "
@@ -338,7 +184,7 @@ def index():
                 logging.debug(f"Final GPT Query: {final_query}")
 
                 # Now call GPT just once
-                final_gpt_answer = call_openai_gpt(final_query, final_zones_for_gpt)
+                final_gpt_answer = gpt_client.call_gpt(final_query, final_zones_for_gpt)
                 logging.debug(f"Automatic GPT Analysis Generated: {final_gpt_answer}")
 
                 # Store that final GPT answer in session
@@ -425,7 +271,6 @@ def index():
         active_chat_id=active_chat_id
     )
 
-
 @app.route('/send_message', methods=['POST'])
 def send_message():
     """
@@ -464,8 +309,8 @@ def send_message():
         latest_chat['gpt_answer'] = updated_answer
         chat_history[-1] = latest_chat
 
-    # Call GPT
-    gpt_response = call_openai_gpt(user_message, session.get('demand_zones_fresh_dict', {}))
+    # Call GPT via GPTClient
+    gpt_response = gpt_client.call_gpt(user_message, session.get('demand_zones_fresh_dict', {})) if gpt_client else "GPT functionality is not available at the moment."
 
     # Update the latest chat with the GPT response
     latest_chat = chat_history[-1]
@@ -476,7 +321,6 @@ def send_message():
     session['chat_history'] = chat_history
 
     return jsonify({'message': gpt_response})
-
 
 if __name__ == '__main__':
     app.run(debug=True)
