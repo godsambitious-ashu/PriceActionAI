@@ -1,0 +1,29 @@
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h5>Chats</h5>
+      <button
+        class="minimize-btn"
+        id="minimizeSidebar"
+        aria-label="Minimize Sidebar"
+      >
+        <i class="fas fa-chevron-left"></i>
+      </button>
+    </div>
+    <div id="chatList">
+      {% for chat in chat_history %}
+        {% set chat_id = loop.index0 %}
+        <div
+          class="chat-heading {% if chat_id == active_chat_id %}active{% endif %}"
+          data-chat-id="{{ chat_id }}"
+          title="{{ chat.stock_code }} - {{ chat.timestamp }}"
+        >
+          <i class="fas fa-chart-line me-2"></i>
+          <span class="chat-title">
+            {{ chat.stock_code }} - {{ chat.timestamp }}
+          </span>
+        </div>
+      {% else %}
+        <p class="p-3 text-muted">No chats yet.</p>
+      {% endfor %}
+    </div>
+  </div>
