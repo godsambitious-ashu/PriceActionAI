@@ -162,7 +162,9 @@ def index():
             (
                 charts,
                 demand_zones_info,
+                supply_zones_info,
                 all_demand_zones_fresh,
+                all_supply_zones_fresh,
                 monthly_fresh_zones,
                 daily_all_zones,
                 current_market_price

@@ -7,27 +7,32 @@ class CandleStickUtils:
 
     @staticmethod
     def add_candle_identifiers(stock_data, base_candle_threshold, exciting_candle_threshold):
-
-        stock_data['Body'] = abs(stock_data['Close'] - stock_data['Open'])
-        stock_data['UpperWick'] = stock_data['High'] - stock_data[['Close', 'Open']].max(axis=1)
-        stock_data['LowerWick'] = stock_data[['Close', 'Open']].min(axis=1) - stock_data['Low']
-
-        stock_data['BaseCandle'] = (
-            (stock_data['UpperWick'] > base_candle_threshold * stock_data['Body']) | 
-            (stock_data['LowerWick'] > base_candle_threshold * stock_data['Body'])
-        )
-
-        stock_data['GapUp'] = (
-            stock_data['Open'] >= stock_data['Close'].shift(1) * 1.03
-        )
-
-        stock_data['ExcitingCandle'] = (
-            ((stock_data['UpperWick'] < exciting_candle_threshold * stock_data['Body']) & 
-            (stock_data['LowerWick'] < exciting_candle_threshold * stock_data['Body'])) | 
-            stock_data['GapUp']
-        )
-        
-        return stock_data
+    
+       stock_data['Body'] = abs(stock_data['Close'] - stock_data['Open'])
+       stock_data['UpperWick'] = stock_data['High'] - stock_data[['Close', 'Open']].max(axis=1)
+       stock_data['LowerWick'] = stock_data[['Close', 'Open']].min(axis=1) - stock_data['Low']
+    
+       stock_data['BaseCandle'] = (
+           (stock_data['UpperWick'] > base_candle_threshold * stock_data['Body']) | 
+           (stock_data['LowerWick'] > base_candle_threshold * stock_data['Body'])
+       )
+    
+       stock_data['GapUp'] = (
+           stock_data['Open'] >= stock_data['Close'].shift(1) * 1.03
+       )
+    
+       # Add GapDown identifier
+       stock_data['GapDown'] = (
+           stock_data['Open'] <= stock_data['Close'].shift(1) * 0.97
+       )
+    
+       stock_data['ExcitingCandle'] = (
+           ((stock_data['UpperWick'] < exciting_candle_threshold * stock_data['Body']) & 
+           (stock_data['LowerWick'] < exciting_candle_threshold * stock_data['Body'])) | 
+           stock_data['GapUp']
+       )
+    
+       return stock_data
 
     @staticmethod
     def highlightCandlesAsExcitingOrBase(stock_data):
