@@ -165,13 +165,13 @@ def index():
                 supply_zones_info,
                 all_demand_zones_fresh,
                 all_supply_zones_fresh,
-                monthly_fresh_zones,
+                monthly_all_zones,
                 daily_all_zones,
                 current_market_price
             ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
 
             # After processing, prepare data for GPT
-            final_zones_for_gpt = gpt_client.prepare_zones(monthly_fresh_zones, daily_all_zones) if ENABLE_GPT and gpt_client else {}
+            final_zones_for_gpt = gpt_client.prepare_zones(monthly_all_zones, daily_all_zones) if ENABLE_GPT and gpt_client else {}
             if current_market_price is not None:
                 final_zones_for_gpt['current_market_price'] = current_market_price
 

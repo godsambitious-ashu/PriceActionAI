@@ -76,7 +76,7 @@ class SupplyZoneIdentifier:
                         patterns, zone_id, interval
                     )
                     # If a pattern was found, zone_id may be incremented
-                    if len(patterns) > 0 and patterns[-1]['zone_id'] == zone_id:
+                    if len(patterns) > 0:
                         zone_id += 1
                     i = j  # move past the candles we just checked
                 else:
@@ -142,6 +142,7 @@ class SupplyZoneIdentifier:
                 'distal': distal,
                 'score': score,
                 'interval': interval,
+                'zoneType': "Supply",
                 'candles': [
                     {
                         'date': stock_data.index[i],
@@ -161,7 +162,7 @@ class SupplyZoneIdentifier:
                 f"Proximal={proximal}, Distal={distal}, Score={score}"
             )
 
-            return True, zone_id + 1, i + 2  # move i by 2 to skip both candles
+            return True, zone_id + 1, i + 1  # move i by 2 to skip both candles
         else:
             return False, zone_id, i
 
@@ -225,18 +226,17 @@ class SupplyZoneIdentifier:
                 logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
 
                 # For extended intervals, apply additional conditions
+                # **Add the following block for the additional condition**
                 if interval in extended_intervals:
-                    max_high_in_base = max(candle['High'] for candle in base_candles)
-                    min_low_in_base = min(candle['Low'] for candle in base_candles)
-                    second_close = second_candle['Close']
-
-                    # Ensure second candle's close is within the range of the base candles
-                    if not (min_low_in_base <= second_close <= max_high_in_base):
+                    # Calculate the minimum low of the base candles
+                    max_high = max(candle['High'] for candle in base_candles)
+                    # Check if the closing price of the second candle is above the minimum low
+                    if stock_data.iloc[j]['Close'] >= max_high:
                         logging.debug(
-                            f"Second candle's close ({second_close}) is not between base candles' "
-                            f"min low ({min_low_in_base}) and max high ({max_high_in_base}); pattern invalid."
+                            f"Closing price of second candle at index {j} ({stock_data.iloc[j]['Close']}) "
+                            f"is not above the minimum low of base candles ({max_high}); pattern invalid"
                         )
-                        return
+                        return  # Do not identify the pattern
 
                 # We have a valid second candle, so let's build the pattern.
                 zone_dates = stock_data.index[i:j+1]
@@ -268,6 +268,7 @@ class SupplyZoneIdentifier:
                     'distal': distal,
                     'score': score,
                     'interval': interval,
+                    'zoneType': "Supply",
                     'candles': (
                         [{
                             'date': stock_data.index[i],

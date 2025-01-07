@@ -113,6 +113,7 @@ class DemandZoneIdentifier:
                 'distal': distal,
                 'score': score,
                 'interval': interval,
+                'zoneType': "Demand",
                 'candles': [
                     {
                         'date': stock_data.index[i],
@@ -224,6 +225,7 @@ class DemandZoneIdentifier:
                     'distal': distal,
                     'score': score,
                     'interval': interval,
+                    'zoneType': "Demand",
                     'candles': (
                         [{
                             'date': stock_data.index[i],

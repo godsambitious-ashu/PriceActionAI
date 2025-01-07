@@ -306,35 +306,63 @@ class DemandZoneManager:
         current_market_price = None
 
         for interval in intervals:
-            logging.debug(f"Processing {interval} for stock {self.stock_code}...")
+            logging.debug(f"Processing interval '{interval}' for stock '{self.stock_code}'...")
             result = self.process_single_interval(interval, period)
             if not result:
-                # If no data or something unexpected, skip
+                logging.warning(f"No data returned for interval '{interval}'. Skipping.")
                 continue
 
+            # Log the entire result structure for inspection
+            logging.debug(f"Result for interval '{interval}': {result}")
+
+            # Verify that result contains expected keys
+            required_keys = ['chart_all_zones', 'chart_fresh_zones', 'all_zones_info', 'fresh_zones_info', 'fresh_zones']
+            for key in required_keys:
+                if key not in result:
+                    logging.error(f"Missing key '{key}' in result for interval '{interval}'. Skipping this interval.")
+                    continue
+
             # Populate the output dictionaries
-            charts[interval] = {
-                'all_zones': result['chart_all_zones'],
-                'fresh_zones': result['chart_fresh_zones']
-            }
-            demand_zones_info[interval] = {
-                'all_zones_info': result['all_zones_info'],
-                'fresh_zones_info': result['fresh_zones_info']
-            }
-            supply_zones_info[interval] = {
-                'all_zones_info': result['all_zones_info'],  # Adjust if you separate info
-                'fresh_zones_info': result['fresh_zones_info']
-            }
-            all_demand_zones_fresh[interval] = result['fresh_zones']['demand']
-            all_supply_zones_fresh[interval] = result['fresh_zones']['supply']
+            try:
+                charts[interval] = {
+                    'all_zones': result['chart_all_zones'],
+                    'fresh_zones': result['chart_fresh_zones']
+                }
+                demand_zones_info[interval] = {
+                    'all_zones_info': result['all_zones_info'],
+                    'fresh_zones_info': result['fresh_zones_info']
+                }
+                supply_zones_info[interval] = {
+                    'all_zones_info': result['all_zones_info'],  # Adjust if you separate info
+                    'fresh_zones_info': result['fresh_zones_info']
+                }
+                all_demand_zones_fresh[interval] = result['fresh_zones']['demand']
+                all_supply_zones_fresh[interval] = result['fresh_zones']['supply']
+            except AttributeError as ae:
+                logging.error(f"AttributeError while populating dictionaries for interval '{interval}': {ae}")
+                continue
+            except KeyError as ke:
+                logging.error(f"KeyError while populating dictionaries for interval '{interval}': {ke}")
+                continue
 
             # Capture monthly "all" and "fresh" zones, daily "all" zones, etc.
             if interval == '1mo':
-                # Store both demand and supply "all" zones
-                monthly_fresh_zones = result['all_zones']['demand'] + result['all_zones']['supply']
+                if isinstance(result['all_zones']['demand'], list) and isinstance(result['all_zones']['supply'], list):
+                    monthly_fresh_zones = result['all_zones']['demand'] + result['all_zones']['supply']
+                    logging.debug(f"Monthly fresh zones for '1mo': {monthly_fresh_zones}")
+                else:
+                    logging.error(f"'all_zones' for '1mo' interval does not contain lists for 'demand' and 'supply'.")
             if interval == '1d':
-                daily_all_zones = result['all_zones']
-                current_market_price = result['current_price']
+                if isinstance(result['all_zones'], dict):
+                    daily_all_zones = result['all_zones']
+                    logging.debug(f"Daily all zones for '1d': {daily_all_zones}")
+                    current_market_price = result.get('current_price')
+                    if current_market_price is not None:
+                        logging.debug(f"Current market price: {current_market_price}")
+                    else:
+                        logging.warning(f"'current_price' not found in result for '1d' interval.")
+                else:
+                    logging.error(f"'all_zones' for '1d' interval is not a dictionary.")
 
         return (
             charts,
