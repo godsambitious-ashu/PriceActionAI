@@ -132,21 +132,20 @@ class GPTClient:
                     result["1d"].append(daily_zone)
     
         return result
-
     def serialize_demand_zones(self, demand_zones_dict):
         """
         Recursively serialize the demand zones dictionary to ensure all components are JSON-serializable,
-        excluding 'dates', 'zone_id', and 'candles' data.
-
+        excluding 'dates', 'zone_id', and 'candles' data. All float values are rounded to two decimals.
+    
         Args:
             demand_zones_dict (dict): The original demand zones data.
-
+    
         Returns:
             str: A JSON-formatted string of the serialized demand zones.
         """
         if not isinstance(demand_zones_dict, dict):
             return "{}"
-
+    
         serialized = {}
         for key, value in demand_zones_dict.items():
             if isinstance(value, list):
@@ -159,7 +158,7 @@ class GPTClient:
                         # Skip unwanted keys at the zone level
                         if zone_key in ["dates", "zone_id", "candles"]:
                             continue
-
+                        
                         if isinstance(zone_value, pd.DatetimeIndex):
                             serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S').tolist()
                         elif isinstance(zone_value, pd.Timestamp):
@@ -167,15 +166,15 @@ class GPTClient:
                         elif isinstance(zone_value, datetime):
                             serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
                         elif isinstance(zone_value, (np.float64, np.float32)):
-                            serialized_zone[zone_key] = float(zone_value)
+                            # Round float values to two decimals
+                            serialized_zone[zone_key] = round(float(zone_value), 2)
                         elif isinstance(zone_value, (np.int64, np.int32)):
                             serialized_zone[zone_key] = int(zone_value)
                         elif isinstance(zone_value, list):
-                            # If list processing was needed for other keys, but here we skip candles already above.
                             serialized_list = []
                             for item in zone_value:
                                 if isinstance(item, (np.float64, np.float32)):
-                                    serialized_list.append(float(item))
+                                    serialized_list.append(round(float(item), 2))
                                 elif isinstance(item, (np.int64, np.int32)):
                                     serialized_list.append(int(item))
                                 elif isinstance(item, datetime):
@@ -193,15 +192,15 @@ class GPTClient:
                 elif isinstance(value, datetime):
                     serialized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
                 elif isinstance(value, (np.float64, np.float32)):
-                    serialized[key] = float(value)
+                    serialized[key] = round(float(value), 2)
                 elif isinstance(value, (np.int64, np.int32)):
                     serialized[key] = int(value)
                 else:
                     serialized[key] = value
-
+    
         try:
             serialized_json = json.dumps(serialized, indent=2)
         except (TypeError, Exception):
             return "{}"
-
+    
         return serialized_json
