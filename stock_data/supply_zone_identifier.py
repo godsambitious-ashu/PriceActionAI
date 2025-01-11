@@ -1,4 +1,3 @@
-import logging
 import pandas as pd
 
 class SupplyZoneIdentifier:
@@ -28,8 +27,6 @@ class SupplyZoneIdentifier:
             List of identified supply zone patterns. Each dict includes:
             'zone_id', 'dates', 'proximal', 'distal', 'score', 'interval', 'candles'
         """
-        logging.debug("Starting to identify supply zones")
-
         # Define intervals that allow up to 5 base candles
         extended_intervals = ['1mo', '3mo', '6mo', '1y', '2y', '5y', '10y']
         max_base_candles = 5 if interval in extended_intervals else 3
@@ -40,15 +37,6 @@ class SupplyZoneIdentifier:
         i = 1  # start from 1 because we may reference i-1 for GapDown checks if needed
 
         while i < n - 1:
-            logging.debug(
-                f"Checking candle at index {i}, "
-                f"date: {stock_data.index[i]}, "
-                f"Open: {stock_data.iloc[i]['Open']}, "
-                f"Close: {stock_data.iloc[i]['Close']}, "
-                f"High: {stock_data.iloc[i]['High']}, "
-                f"Low: {stock_data.iloc[i]['Low']}"
-            )
-
             # 1) Attempt Green -> Red Exciting Candle pattern
             green_red_pattern_created, zone_id, i = SupplyZoneIdentifier._attempt_green_red_pattern(
                 stock_data, i, n, zone_id, patterns, interval
@@ -85,7 +73,6 @@ class SupplyZoneIdentifier:
             else:
                 i += 1
 
-        logging.debug("Supply zones identification completed")
         return patterns
 
     # --------------------------------------------------------------------
@@ -125,8 +112,6 @@ class SupplyZoneIdentifier:
         closes_below_first_open = next_candle['Close'] < stock_data.iloc[i]['Open']
 
         if is_red_exciting and closes_below_first_open:
-            logging.debug(f"Found green exciting candle at index {i} then red exciting candle at index {i+1}")
-
             # For supply zone:
             # proximal = next candle's open
             proximal = next_candle['Open']
@@ -157,10 +142,6 @@ class SupplyZoneIdentifier:
                 ]
             }
             patterns.append(pattern)
-            logging.debug(
-                f"Supply pattern identified (Green->Red). Dates: {stock_data.index[i:i+2]} "
-                f"Proximal={proximal}, Distal={distal}, Score={score}"
-            )
 
             return True, zone_id + 1, i + 1  # move i by 2 to skip both candles
         else:
@@ -184,7 +165,6 @@ class SupplyZoneIdentifier:
                 not stock_data.iloc[j]['ExcitingCandle'] and
                 not stock_data.iloc[j]['GapDown']
             ):
-                logging.debug(f"Found base candle at index {j}, date: {stock_data.index[j]}")
                 base_candles.append(stock_data.iloc[j])
                 j += 1
             else:
@@ -223,19 +203,10 @@ class SupplyZoneIdentifier:
                 second_candle['GapDown']
             )
             if is_second_candle_valid:
-                logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
-
                 # For extended intervals, apply additional conditions
-                # **Add the following block for the additional condition**
                 if interval in extended_intervals:
-                    # Calculate the minimum low of the base candles
                     max_high = max(candle['High'] for candle in base_candles)
-                    # Check if the closing price of the second candle is above the minimum low
                     if stock_data.iloc[j]['Close'] >= max_high:
-                        logging.debug(
-                            f"Closing price of second candle at index {j} ({stock_data.iloc[j]['Close']}) "
-                            f"is not above the minimum low of base candles ({max_high}); pattern invalid"
-                        )
                         return  # Do not identify the pattern
 
                 # We have a valid second candle, so let's build the pattern.
@@ -249,18 +220,13 @@ class SupplyZoneIdentifier:
                 # 2) Distal = highest high among first candle (if Green Exciting or GapDown), base candles, and second candle
                 high_values = []
                 if first_candle_condition:
-                    # Include the High of the first candle
                     high_values.append(stock_data.iloc[i]['High'])
-                # Include the High of base candles
                 high_values.extend(candle['High'] for candle in base_candles)
-                # Include second candle's High
                 high_values.append(second_candle['High'])
                 distal = max(high_values)
 
-                # Calculate the score from j+1 onward
                 score = SupplyZoneIdentifier._calculate_score(stock_data, j + 1, n)
 
-                # Construct the pattern
                 pattern = {
                     'zone_id': zone_id,
                     'dates': zone_dates,
@@ -288,14 +254,10 @@ class SupplyZoneIdentifier:
                     )
                 }
                 patterns.append(pattern)
-                logging.debug(
-                    f"Supply pattern identified. Dates: {zone_dates}, "
-                    f"Proximal={proximal}, Distal={distal}, Score={score}"
-                )
             else:
-                logging.debug(f"Second candle at index {j} is not valid for a supply pattern.")
+                pass
         else:
-            logging.debug(f"No candle at index {j}; can't complete the pattern.")
+            pass
 
     @staticmethod
     def _calculate_score(stock_data, start_idx, n):
@@ -308,10 +270,8 @@ class SupplyZoneIdentifier:
         score = 0
         k = start_idx
         while k < n:
-            # Red exciting candle
             if stock_data.iloc[k]['ExcitingCandle'] and stock_data.iloc[k]['Close'] < stock_data.iloc[k]['Open']:
                 score += 1
-            # GapDown candle
             elif stock_data.iloc[k].get('GapDown', False):
                 score += 2
             else:

@@ -1,11 +1,8 @@
-import logging
 import pandas as pd
 
 class DemandZoneIdentifier:
     @staticmethod
     def identify_demand_zones(stock_data, interval, gap_threshold=0.03):
-        logging.debug("Starting to identify demand zones") 
-
         # Define Gap-Up Candles
 
         # Define extended intervals that allow up to 6 base candles
@@ -18,15 +15,6 @@ class DemandZoneIdentifier:
         i = 1  # Start from 1 because we use shift(1) for gap-up calculation
 
         while i < n - 1:
-            logging.debug(
-                f"Checking candle at index {i}, "
-                f"date: {stock_data.index[i]}, "
-                f"Open: {stock_data.iloc[i]['Open']}, "
-                f"Close: {stock_data.iloc[i]['Close']}, "
-                f"High: {stock_data.iloc[i]['High']}, "
-                f"Low: {stock_data.iloc[i]['Low']}"
-            )
-
             # Check the "first candle" conditions
             first_candle_condition = DemandZoneIdentifier._is_first_candle_condition(stock_data, i)
             
@@ -59,12 +47,10 @@ class DemandZoneIdentifier:
                     i = j  # Move to the index after checking second candle
                 else:
                     # No base candles collected; pattern invalid
-                    logging.debug(f"No base candles collected after first candle at index {i}; pattern invalid")
                     i = j  # Move past the first candle and any non-base candles
             else:
                 i += 1  # Move to the next candle
 
-        logging.debug("Demand zones identification completed")
         return patterns
 
     @staticmethod
@@ -98,8 +84,6 @@ class DemandZoneIdentifier:
 
         # Check the Red->Green condition
         if is_green_exciting and closes_above_first_open:
-            logging.debug(f"Found red exciting candle at index {i} and green exciting candle at index {i+1}")
-
             proximal = next_candle['Open']
             distal = min(stock_data.iloc[i]['Low'], next_candle['Low'])
 
@@ -128,10 +112,6 @@ class DemandZoneIdentifier:
                 ]
             }
             patterns.append(pattern)
-            logging.debug(
-                f"Pattern identified with dates: {stock_data.index[i:i+2]} "
-                f"and prices: proximal={proximal}, distal={distal}, score={score}"
-            )
             return True, zone_id + 1, i + 1
 
         return False, zone_id, i
@@ -151,7 +131,6 @@ class DemandZoneIdentifier:
                 not stock_data.iloc[j]['ExcitingCandle'] and 
                 not stock_data.iloc[j]['GapUp']
             ):
-                logging.debug(f"Found base candle at index {j}, date: {stock_data.index[j]}")
                 base_candles.append(stock_data.iloc[j])
                 j += 1
             else:
@@ -184,18 +163,12 @@ class DemandZoneIdentifier:
             second_candle_is_green = stock_data.iloc[j]['Close'] > stock_data.iloc[j]['Open']
             # We only proceed if the second candle is either green or GapUp
             if second_candle_is_green or stock_data.iloc[j]['GapUp']:
-                logging.debug(f"Found second candle at index {j}, date: {stock_data.index[j]}")
-
                 # **Add the following block for the additional condition**
                 if interval in extended_intervals:
                     # Calculate the minimum low of the base candles
                     min_low = min(candle['Low'] for candle in base_candles)
                     # Check if the closing price of the second candle is above the minimum low
                     if stock_data.iloc[j]['Close'] <= min_low:
-                        logging.debug(
-                            f"Closing price of second candle at index {j} ({stock_data.iloc[j]['Close']}) "
-                            f"is not above the minimum low of base candles ({min_low}); pattern invalid"
-                        )
                         return  # Do not identify the pattern
 
                 # Proceed to identify and create the pattern
@@ -245,16 +218,12 @@ class DemandZoneIdentifier:
                     )
                 }
                 patterns.append(pattern)
-                logging.debug(
-                    f"Pattern identified with dates: {zone_dates} "
-                    f"and prices: proximal={proximal}, distal={distal}, score={score}"
-                )
             else:
                 # Second candle is not green or a gap-up; pattern breaks
-                logging.debug(f"Second candle at index {j} is not valid; pattern breaks")
+                pass
         else:
             # No valid second candle found; pattern incomplete
-            logging.debug(f"Pattern not completed at index {j}")
+            pass
 
     @staticmethod
     def _calculate_score(stock_data, start_idx, n):

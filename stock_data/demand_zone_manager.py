@@ -1,5 +1,4 @@
 import itertools
-import logging
 from stock_data.demand_zone_identifier import DemandZoneIdentifier
 from stock_data.supply_zone_identifier import SupplyZoneIdentifier
 from stock_data.demand_zone_utils import DemandZoneUtils
@@ -18,7 +17,7 @@ class DemandZoneManager:
         """
         self.stock_code = stock_code
         self.fig = fig
-        self.colors = itertools.cycle([ 'green'])
+        self.colors = itertools.cycle(['green'])
         self.supply_colors = itertools.cycle(['red'])  # Colors for supply zones
         self.monthly_zones_all = []    # For "all demand zones" on monthly
         self.monthly_zones_fresh = []  # For "fresh demand zones" on monthly
@@ -37,15 +36,10 @@ class DemandZoneManager:
             list: Merged list of daily and monthly zones.
         """
         if not isinstance(monthly_zones, list) or not isinstance(daily_zones, list):
-            logging.error("monthly_zones and daily_zones must be lists")
             return daily_zones
 
         merged_zones = daily_zones.copy()  # To avoid modifying the original list
         merged_zones.extend(monthly_zones)
-        logging.debug(
-            f"Merged {len(monthly_zones)} monthly zones into daily zones. "
-            f"Total zones: {len(merged_zones)}"
-        )
         return merged_zones
 
     def include_higher_tf_zones_in_lower_tf_zones(self, interval, zones, zone_type='all', zone_category='demand'):
@@ -61,48 +55,31 @@ class DemandZoneManager:
         Returns:
             list: Updated list of zones after merging if applicable.
         """
-        logging.debug(
-            f"Called include_higher_tf_zones_in_lower_tf_zones with interval={interval}, "
-            f"zone_type={zone_type}, zone_category={zone_category}"
-        )
-
         if zone_category == 'demand':
             if interval == '1mo':
                 if zone_type == 'all':
                     self.monthly_zones_all = zones
-                    logging.debug(f"Stored monthly_zones_all: {self.monthly_zones_all}")
                 elif zone_type == 'fresh':
                     self.monthly_zones_fresh = zones
-                    logging.debug(f"Stored monthly_zones_fresh: {self.monthly_zones_fresh}")
 
             elif interval == '1d':
                 if zone_type == 'all' and self.monthly_zones_all:
-                    logging.debug("Merging monthly_zones_all into daily_zones_all")
                     zones = self.merge_monthly_zones_into_daily(self.monthly_zones_all, zones)
                 elif zone_type == 'fresh' and self.monthly_zones_fresh:
-                    logging.debug("Merging monthly_zones_fresh into daily_zones_fresh")
                     zones = self.merge_monthly_zones_into_daily(self.monthly_zones_fresh, zones)
-                else:
-                    logging.debug(f"No {zone_type}_zones to merge into daily_zones")
         
         elif zone_category == 'supply':
             if interval == '1mo':
                 if zone_type == 'all':
                     self.monthly_supply_zones_all = zones
-                    logging.debug(f"Stored monthly_supply_zones_all: {self.monthly_supply_zones_all}")
                 elif zone_type == 'fresh':
                     self.monthly_supply_zones_fresh = zones
-                    logging.debug(f"Stored monthly_supply_zones_fresh: {self.monthly_supply_zones_fresh}")
 
             elif interval == '1d':
                 if zone_type == 'all' and self.monthly_supply_zones_all:
-                    logging.debug("Merging monthly_supply_zones_all into daily_supply_zones_all")
                     zones = self.merge_monthly_zones_into_daily(self.monthly_supply_zones_all, zones)
                 elif zone_type == 'fresh' and self.monthly_supply_zones_fresh:
-                    logging.debug("Merging monthly_supply_zones_fresh into daily_supply_zones_fresh")
                     zones = self.merge_monthly_zones_into_daily(self.monthly_supply_zones_fresh, zones)
-                else:
-                    logging.debug(f"No {zone_type}_supply_zones to merge into daily_supply_zones")
 
         return zones
 
@@ -116,14 +93,12 @@ class DemandZoneManager:
         :return: List of identified demand zones.
         """
         demand_zones = DemandZoneIdentifier.identify_demand_zones(stock_data, interval)
-        logging.debug(f"Total demand zones identified for interval={interval}: {len(demand_zones)}")
 
         if fresh:
             demand_zones = [
                 zone for zone in demand_zones
                 if DemandZoneUtils.is_fresh_demand_zone(stock_data, zone)
             ]
-            logging.debug(f"Fresh demand zones retained: {len(demand_zones)}")
 
         return demand_zones
 
@@ -137,14 +112,12 @@ class DemandZoneManager:
         :return: List of identified supply zones.
         """
         supply_zones = SupplyZoneIdentifier.identify_supply_zones(stock_data, interval)
-        logging.debug(f"Total supply zones identified for interval={interval}: {len(supply_zones)}")
 
         if fresh:
             supply_zones = [
                 zone for zone in supply_zones
                 if DemandZoneUtils.is_fresh_supply_zone(stock_data, zone)  # Ensure this utility exists
             ]
-            logging.debug(f"Fresh supply zones retained: {len(supply_zones)}")
 
         return supply_zones
 
@@ -214,51 +187,39 @@ class DemandZoneManager:
                 'current_price': (float|None) last close if interval == '1d', else None
             }
         """
-        # 1. Fetch data
         stock_data = DataFetcher.fetch_stock_data(self.stock_code, interval=interval, period=period)
         if stock_data.empty:
-            logging.warning(f"No data for {self.stock_code} at interval={interval}, period={period}.")
             return {}
 
-        # 2. Create base candlestick chart
         plotter = Plotter()
         base_fig = plotter.create_candlestick_chart(stock_data, self.stock_code, interval)
-        self.fig = base_fig  # Update our figure reference
+        self.fig = base_fig
 
-        # ----- Process Demand Zones -----
-        # 3. Identify 'all' demand zones and merge higher timeframe zones if needed
         demand_zones_all = self.identify_demand_zones(stock_data, interval, fresh=False)
         demand_zones_all = self.include_higher_tf_zones_in_lower_tf_zones(interval, demand_zones_all, 'all', 'demand')
 
-        # 4. Identify 'all' supply zones and merge higher timeframe zones if needed
         supply_zones_all = self.identify_supply_zones(stock_data, interval, fresh=False)
         supply_zones_all = self.include_higher_tf_zones_in_lower_tf_zones(interval, supply_zones_all, 'all', 'supply')
 
-        # 5. Mark 'all' demand and supply zones
         fig_all_zones = self.mark_demand_zones_on_chart(demand_zones_all)
         fig_all_zones = self.mark_supply_zones_on_chart(supply_zones_all)
         chart_all_zones = pio.to_html(fig_all_zones, full_html=False)
         all_zones_info = self.generate_demand_zones_info(demand_zones_all) + "\n" + self.generate_supply_zones_info(supply_zones_all)
 
-        # ----- Process Fresh Zones -----
-        # 6. Identify 'fresh' demand zones and merge higher timeframe zones if needed
         demand_zones_fresh = self.identify_demand_zones(stock_data, interval, fresh=True)
         demand_zones_fresh = self.include_higher_tf_zones_in_lower_tf_zones(interval, demand_zones_fresh, 'fresh', 'demand')
 
-        # 7. Identify 'fresh' supply zones and merge higher timeframe zones if needed
         supply_zones_fresh = self.identify_supply_zones(stock_data, interval, fresh=True)
         supply_zones_fresh = self.include_higher_tf_zones_in_lower_tf_zones(interval, supply_zones_fresh, 'fresh', 'supply')
 
-        # 8. Mark 'fresh' demand and supply zones
         fig_fresh_zones = plotter.create_candlestick_chart(stock_data, self.stock_code, interval)
-        self.fig = fig_fresh_zones  # Update figure for fresh zones
+        self.fig = fig_fresh_zones
 
         fig_fresh_zones = self.mark_demand_zones_on_chart(demand_zones_fresh)
         fig_fresh_zones = self.mark_supply_zones_on_chart(supply_zones_fresh)
         chart_fresh_zones = pio.to_html(fig_fresh_zones, full_html=False)
         fresh_zones_info = self.generate_demand_zones_info(demand_zones_fresh) + "\n" + self.generate_supply_zones_info(supply_zones_fresh)
 
-        # 9. Capture current market price if daily
         current_price = None
         if interval == '1d':
             current_price = stock_data.iloc[-1]['Close']
@@ -306,23 +267,15 @@ class DemandZoneManager:
         current_market_price = None
 
         for interval in intervals:
-            logging.debug(f"Processing interval '{interval}' for stock '{self.stock_code}'...")
             result = self.process_single_interval(interval, period)
             if not result:
-                logging.warning(f"No data returned for interval '{interval}'. Skipping.")
                 continue
 
-            # Log the entire result structure for inspection
-            logging.debug(f"Result for interval '{interval}': {result}")
-
-            # Verify that result contains expected keys
             required_keys = ['chart_all_zones', 'chart_fresh_zones', 'all_zones_info', 'fresh_zones_info', 'fresh_zones']
             for key in required_keys:
                 if key not in result:
-                    logging.error(f"Missing key '{key}' in result for interval '{interval}'. Skipping this interval.")
                     continue
 
-            # Populate the output dictionaries
             try:
                 charts[interval] = {
                     'all_zones': result['chart_all_zones'],
@@ -333,36 +286,21 @@ class DemandZoneManager:
                     'fresh_zones_info': result['fresh_zones_info']
                 }
                 supply_zones_info[interval] = {
-                    'all_zones_info': result['all_zones_info'],  # Adjust if you separate info
+                    'all_zones_info': result['all_zones_info'],
                     'fresh_zones_info': result['fresh_zones_info']
                 }
                 all_demand_zones_fresh[interval] = result['fresh_zones']['demand']
                 all_supply_zones_fresh[interval] = result['fresh_zones']['supply']
-            except AttributeError as ae:
-                logging.error(f"AttributeError while populating dictionaries for interval '{interval}': {ae}")
-                continue
-            except KeyError as ke:
-                logging.error(f"KeyError while populating dictionaries for interval '{interval}': {ke}")
+            except (AttributeError, KeyError):
                 continue
 
-            # Capture monthly "all" and "fresh" zones, daily "all" zones, etc.
             if interval == '1mo':
                 if isinstance(result['all_zones']['demand'], list) and isinstance(result['all_zones']['supply'], list):
                     monthly_fresh_zones = result['all_zones']['demand'] + result['all_zones']['supply']
-                    logging.debug(f"Monthly fresh zones for '1mo': {monthly_fresh_zones}")
-                else:
-                    logging.error(f"'all_zones' for '1mo' interval does not contain lists for 'demand' and 'supply'.")
             if interval == '1d':
                 if isinstance(result['all_zones'], dict):
                     daily_all_zones = result['all_zones']
-                    logging.debug(f"Daily all zones for '1d': {daily_all_zones}")
                     current_market_price = result.get('current_price')
-                    if current_market_price is not None:
-                        logging.debug(f"Current market price: {current_market_price}")
-                    else:
-                        logging.warning(f"'current_price' not found in result for '1d' interval.")
-                else:
-                    logging.error(f"'all_zones' for '1d' interval is not a dictionary.")
 
         return (
             charts,
