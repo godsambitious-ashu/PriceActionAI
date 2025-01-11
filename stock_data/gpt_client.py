@@ -18,7 +18,7 @@ class GPTClient:
         
         self.client = OpenAI(api_key=api_key)
 
-    def call_gpt(self, user_query, demand_zones_fresh_dict):
+    def call_gpt(self, user_query, demand_zones_combined):
         """
         Calls OpenAI's GPT API using the ChatCompletion endpoint.
         Returns the GPT response text.
@@ -31,15 +31,15 @@ class GPTClient:
             str: GPT-generated analysis or error message.
         """
         try:
-            demand_zones_fresh_json = self.serialize_demand_zones(demand_zones_fresh_dict)
+            demand_zones_combined_json = self.serialize_demand_zones(demand_zones_combined)
         except Exception as e:
             return f"Sorry, there was an error processing your data: {e}"
 
         messages = [
-            {"role": "system", "content": "You are a financial assistant specializing in analyzing stock data."},
+            {"role": "system", "content": "You are a financial assistant specializing in analyzing stock data and recommending entry points based on demand zones."},
             {"role": "user", "content": f"User Query: {user_query}"},
-            {"role": "user", "content": f"Here are the fresh demand zones (demand_zones_fresh):\n{demand_zones_fresh_json}"},
-            {"role": "user", "content": "Please provide your analysis based on the provided data."},
+            {"role": "user", "content": f"Here are the demand zones (demand_zones_fresh):\n{demand_zones_combined_json}"},
+            {"role": "user", "content": "Please provide the analysis with the entry point and stop-loss calculation as per the instructions."},
         ]
 
         for msg in messages:
@@ -75,8 +75,8 @@ class GPTClient:
                   or an empty dict if nothing matches.
         """
     
-        logging.debug(f"monthly all zones: {monthly_fresh_zones}")
-        logging.debug(f"daily fresh zones: {daily_all_zones}")
+        #logging.debug(f"monthly all zones: {monthly_fresh_zones}")
+        #logging.debug(f"daily fresh zones: {daily_all_zones}")
     
         if not monthly_fresh_zones or not daily_all_zones:
             return {}
@@ -135,7 +135,8 @@ class GPTClient:
 
     def serialize_demand_zones(self, demand_zones_dict):
         """
-        Recursively serialize the demand zones dictionary to ensure all components are JSON-serializable.
+        Recursively serialize the demand zones dictionary to ensure all components are JSON-serializable,
+        excluding 'dates', 'zone_id', and 'candles' data.
 
         Args:
             demand_zones_dict (dict): The original demand zones data.
@@ -150,11 +151,15 @@ class GPTClient:
         for key, value in demand_zones_dict.items():
             if isinstance(value, list):
                 serialized_zones = []
-                for zone_idx, zone in enumerate(value):
+                for zone in value:
                     if not isinstance(zone, dict):
                         continue
                     serialized_zone = {}
                     for zone_key, zone_value in zone.items():
+                        # Skip unwanted keys at the zone level
+                        if zone_key in ["dates", "zone_id", "candles"]:
+                            continue
+
                         if isinstance(zone_value, pd.DatetimeIndex):
                             serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S').tolist()
                         elif isinstance(zone_value, pd.Timestamp):
@@ -166,31 +171,17 @@ class GPTClient:
                         elif isinstance(zone_value, (np.int64, np.int32)):
                             serialized_zone[zone_key] = int(zone_value)
                         elif isinstance(zone_value, list):
+                            # If list processing was needed for other keys, but here we skip candles already above.
                             serialized_list = []
-                            for item_idx, item in enumerate(zone_value):
-                                if isinstance(item, dict):
-                                    serialized_item = {}
-                                    for sub_key, sub_value in item.items():
-                                        if isinstance(sub_value, pd.Timestamp):
-                                            serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
-                                        elif isinstance(sub_value, datetime):
-                                            serialized_item[sub_key] = sub_value.strftime('%Y-%m-%d %H:%M:%S')
-                                        elif isinstance(sub_value, (np.float64, np.float32)):
-                                            serialized_item[sub_key] = float(sub_value)
-                                        elif isinstance(sub_value, (np.int64, np.int32)):
-                                            serialized_item[sub_key] = int(sub_value)
-                                        else:
-                                            serialized_item[sub_key] = sub_value
-                                    serialized_list.append(serialized_item)
+                            for item in zone_value:
+                                if isinstance(item, (np.float64, np.float32)):
+                                    serialized_list.append(float(item))
+                                elif isinstance(item, (np.int64, np.int32)):
+                                    serialized_list.append(int(item))
+                                elif isinstance(item, datetime):
+                                    serialized_list.append(item.strftime('%Y-%m-%d %H:%M:%S'))
                                 else:
-                                    if isinstance(item, (np.float64, np.float32)):
-                                        serialized_list.append(float(item))
-                                    elif isinstance(item, (np.int64, np.int32)):
-                                        serialized_list.append(int(item))
-                                    elif isinstance(item, datetime):
-                                        serialized_list.append(item.strftime('%Y-%m-%d %H:%M:%S'))
-                                    else:
-                                        serialized_list.append(item)
+                                    serialized_list.append(item)
                             serialized_zone[zone_key] = serialized_list
                         else:
                             serialized_zone[zone_key] = zone_value
@@ -207,11 +198,10 @@ class GPTClient:
                     serialized[key] = int(value)
                 else:
                     serialized[key] = value
+
         try:
             serialized_json = json.dumps(serialized, indent=2)
-        except TypeError as te:
-            return "{}"
-        except Exception as e:
+        except (TypeError, Exception):
             return "{}"
 
         return serialized_json

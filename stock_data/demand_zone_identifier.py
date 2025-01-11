@@ -93,8 +93,8 @@ class DemandZoneIdentifier:
             pattern = {
                 'zone_id': zone_id,
                 'dates': stock_data.index[i:i+2],
-                'proximal': proximal,
-                'distal': distal,
+                'proximal': round(proximal, 2),
+                'distal': round(proximal, 2),
                 'score': score,
                 'interval': interval,
                 'zoneType': "Demand",
@@ -194,8 +194,8 @@ class DemandZoneIdentifier:
                 pattern = {
                     'zone_id': zone_id,
                     'dates': zone_dates,
-                    'proximal': proximal,
-                    'distal': distal,
+                    'proximal': round(proximal, 2),
+                    'distal': round(proximal, 2),
                     'score': score,
                     'interval': interval,
                     'zoneType': "Demand",

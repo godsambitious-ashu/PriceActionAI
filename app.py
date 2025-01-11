@@ -186,8 +186,8 @@ def index():
 
             if ENABLE_GPT and gpt_client and final_zones_for_gpt:
                 final_query = (
-                    "Provide an analysis based on the 1mo fresh demand zones and the 1d all demand zones "
-                    "that lie within the 1mo zones' proximal-distal range. "
+                    "The best entry point for the stock are the demand zones "
+                    "If multiple 1d demand zones exist with similar prices, combine them. Then, provide an entry point and calculate a stop-loss. Entry will be 2% above the proximal and stoploss 2% below the distal boundaries of the combined zone. "
                     f"The current market price of the stock is {current_market_price}."
                 )
                 logging.debug(f"Final GPT Query: {final_query}")
