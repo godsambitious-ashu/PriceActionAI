@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
+from flask_session import Session  # Import Flask-Session
 from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
 from stock_data.demand_zone_manager import DemandZoneManager
@@ -14,6 +15,13 @@ app = Flask(__name__)
 # Secret key for session management. Replace with a strong, random key in production.
 app.secret_key = 'your_secret_key_here'  # Keep your secret key secure in production
 
+# Configure server-side sessions using Flask-Session
+app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem backend for sessions
+app.config['SESSION_FILE_DIR'] = './flask_session/'  # Directory for session files
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True  # Sign the session identifier for extra security
+Session(app)  # Initialize the Flask-Session extension
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s:%(message)s')
@@ -22,7 +30,7 @@ logging.basicConfig(level=logging.DEBUG,
 HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
 
 # === GPT Enable/Disable Flag ===
-ENABLE_GPT = False  # Set to True to enable GPT functionality
+ENABLE_GPT = True  # Set to True to enable GPT functionality
 # === End GPT Enable/Disable Flag ===
 
 # === OpenAI API Configuration ===
@@ -99,7 +107,6 @@ def customgpt():
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'user_query': user_query,
         'gpt_answer': gpt_answer
-        # Removed 'charts' from the session
     }
 
     chat_history.append(chat_session)
@@ -216,7 +223,6 @@ def index():
                 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 'user_query': f"Searched {stock_code} with period {period}",
                 'gpt_answer': gpt_auto_answer if gpt_auto_answer else ""
-                # Removed 'charts' from the session
             }
             chat_history.append(chat_session)
             session['chat_history'] = chat_history
@@ -296,7 +302,6 @@ def send_message():
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'user_query': user_message,
             'gpt_answer': ""
-            # Removed 'charts' from the session
         }
         chat_history.append(chat_session)
     else:

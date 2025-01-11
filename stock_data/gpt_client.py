@@ -74,14 +74,27 @@ class GPTClient:
                   }
                   or an empty dict if nothing matches.
         """
+    
+        logging.debug(f"monthly all zones: {monthly_fresh_zones}")
+        logging.debug(f"daily fresh zones: {daily_all_zones}")
+    
         if not monthly_fresh_zones or not daily_all_zones:
             return {}
     
         if not isinstance(monthly_fresh_zones, list):
             return {}
     
+        # Flatten nested structures in daily_all_zones if it's a dict
         if isinstance(daily_all_zones, dict):
-            daily_all_zones = list(daily_all_zones.values())
+            flattened = []
+            for value in daily_all_zones.values():
+                # If value is a list, extend flattened list
+                if isinstance(value, list):
+                    flattened.extend(value)
+                # If nested dicts exist, further flatten if needed
+                elif isinstance(value, dict):
+                    flattened.extend(value.values() if isinstance(value.values(), list) else [])
+            daily_all_zones = flattened
         elif not isinstance(daily_all_zones, list):
             return {}
     
@@ -90,7 +103,7 @@ class GPTClient:
             "1d": []
         }
     
-        for idx, monthly_zone in enumerate(monthly_fresh_zones):
+        for monthly_zone in monthly_fresh_zones:
             if not isinstance(monthly_zone, dict):
                 continue
             
@@ -100,7 +113,7 @@ class GPTClient:
             if mo_proximal is None or mo_distal is None:
                 continue
             
-            for daily_idx, daily_zone in enumerate(daily_all_zones):
+            for daily_zone in daily_all_zones:
                 if not isinstance(daily_zone, dict):
                     continue
                 
@@ -112,7 +125,7 @@ class GPTClient:
                 
                 try:
                     in_range = (float(daily_prox) <= float(mo_proximal)) and (float(daily_dist) >= float(mo_distal))
-                except (TypeError, ValueError) as e:
+                except (TypeError, ValueError):
                     continue
                 
                 if in_range:
