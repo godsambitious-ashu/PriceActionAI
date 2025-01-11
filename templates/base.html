@@ -24,7 +24,26 @@
   <!-- Your custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   
-  {% block extra_head %}{% endblock %}
+  {% block extra_head %}
+  <style>
+    /* Apply white background and full width/height only to the fullscreen container */
+    .chart-container:fullscreen,
+    .chart-container:-webkit-full-screen,
+    .chart-container:-moz-full-screen,
+    .chart-container:-ms-fullscreen {
+      background-color: white !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    /* Specifically set white background for canvas elements inside the fullscreen container */
+    .chart-container:fullscreen canvas,
+    .chart-container:-webkit-full-screen canvas,
+    .chart-container:-moz-full-screen canvas,
+    .chart-container:-ms-fullscreen canvas {
+      background-color: white !important;
+    }
+  </style>
+  {% endblock %}
 </head>
 <body>
   <div class="container-fluid">
@@ -56,6 +75,35 @@
   <!-- Your main JS -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   
-  {% block extra_js %}{% endblock %}
+  {% block extra_js %}
+  <script>
+    function toggleFullscreen(elementId) {
+      const elem = document.getElementById(elementId);
+      if (!document.fullscreenElement) {
+        // Enter fullscreen
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+          elem.mozRequestFullScreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+  </script>
+  {% endblock %}
 </body>
 </html>

@@ -118,8 +118,16 @@
               <div class="charts-section mt-4">
                 <h5>Candlestick Charts</h5>
                 {% for interval, chart_data in charts.items() %}
-                  <div class="chart-container mb-4">
-                    <h6>{{ interval }} Interval</h6>
+                  <div class="chart-container mb-4" id="chart_container_{{ chat_id }}_{{ interval }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h6>{{ interval }} Interval</h6>
+                      <!-- Fullscreen Button -->
+                      <button 
+                        class="btn btn-secondary btn-sm" 
+                        onclick="toggleFullscreen('chart_container_{{ chat_id }}_{{ interval }}')">
+                        Fullscreen
+                      </button>
+                    </div>
                     
                     <div class="toggle-section mb-2">
                       <label for="fresh_toggle_{{ chat_id }}_{{ interval }}">

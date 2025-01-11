@@ -1,12 +1,6 @@
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.io as pio
-import itertools
-import logging
-from stock_data.demand_zone_identifier import DemandZoneIdentifier
-from stock_data.candlestick_utils import CandleStickUtils
-from stock_data.demand_zone_utils import DemandZoneUtils
 
+import logging
+from stock_data.candlestick_utils import CandleStickUtils
 class Plotter:
     @staticmethod
     def create_candlestick_chart(stock_data, stock_code, interval):
@@ -22,15 +16,63 @@ class Plotter:
         # Add candle identifiers
         stock_data = CandleStickUtils.add_candle_identifiers(
             stock_data,
-            base_candle_threshold ,
+            base_candle_threshold,
             exciting_candle_threshold
         )
-        logging.debug(f"Dataframe for interval1mo {stock_data}")
 
         # Create initial candlestick chart with highlighted candles
         fig = CandleStickUtils.highlightCandlesAsExcitingOrBase(stock_data)
 
+        # Update layout for TradingView-like tracer, aesthetics, and interactions
+        fig.update_layout(
+            template='plotly_white',      # White theme for a light background
+            title=dict(
+                text=f'Candlestick Chart for {stock_code}',
+                font=dict(color='black')
+            ),
+            hovermode='x unified',        # Unified hover along x-axis
+            spikedistance=-1,             # Activate spikes for entire chart area
+            hoverlabel=dict(
+                bgcolor="white",
+                font_color="black",
+                font_size=12,
+                font_family="Arial"
+            ),
+            dragmode='zoom',              # Enable zoom on drag
+            xaxis=dict(
+                showspikes=True,
+                spikemode='across',
+                spikesnap='cursor',
+                spikecolor='grey',
+                spikedash='dot',
+                spikethickness=1,
+                showline=True,
+                showgrid=False,           # Remove x-axis grid
+                tickformat='%Y-%m-%d',
+                tickfont=dict(color='black'),
+                title_font=dict(color='black')
+            ),
+            yaxis=dict(
+                side='right',             # Display y-axis (price) on the right side
+                showspikes=True,
+                spikemode='across',
+                spikesnap='cursor',
+                spikecolor='grey',
+                spikedash='dot',
+                spikethickness=1,
+                showline=True,
+                showgrid=False,           # Remove y-axis grid
+                tickfont=dict(color='black'),
+                title_font=dict(color='black')
+            ),
+            xaxis_rangeslider_visible=False,
+            autosize=True,
+            height=800,
+            width=1600,
+            margin=dict(l=50, r=50, t=50, b=50),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+
         logging.debug("Candlestick chart created successfully")
         return fig
-
-

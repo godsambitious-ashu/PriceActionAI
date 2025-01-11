@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.DEBUG,
 HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
 
 # === GPT Enable/Disable Flag ===
-ENABLE_GPT = True  # Set to True to enable GPT functionality
+ENABLE_GPT = False  # Set to True to enable GPT functionality
 # === End GPT Enable/Disable Flag ===
 
 # === OpenAI API Configuration ===
