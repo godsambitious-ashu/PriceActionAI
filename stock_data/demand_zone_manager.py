@@ -262,7 +262,7 @@ class DemandZoneManager:
         supply_zones_info = {}
         all_demand_zones_fresh = {}
         all_supply_zones_fresh = {}
-        monthly_fresh_zones = []
+        monthly_all_zones = []
         daily_all_zones = {'demand': [], 'supply': []}
         current_market_price = None
 
@@ -296,7 +296,7 @@ class DemandZoneManager:
 
             if interval == '1mo':
                 if isinstance(result['all_zones']['demand'], list) and isinstance(result['all_zones']['supply'], list):
-                    monthly_fresh_zones = result['all_zones']['demand'] + result['all_zones']['supply']
+                    monthly_all_zones = result['all_zones']['demand'] + result['all_zones']['supply']
             if interval == '1d':
                 if isinstance(result['all_zones'], dict):
                     daily_all_zones = result['all_zones']
@@ -308,7 +308,7 @@ class DemandZoneManager:
             supply_zones_info,
             all_demand_zones_fresh,
             all_supply_zones_fresh,
-            monthly_fresh_zones,
+            monthly_all_zones,
             daily_all_zones,
             current_market_price
         )
