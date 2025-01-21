@@ -6,12 +6,13 @@
   {% if enable_gpt %}
     <!-- GPT Search Bar at the top -->
     <div class="gpt-section mb-4">
-      <form method="POST" action="/customgpt">
+      <form id="gptForm">
         <div class="input-group">
           <input type="hidden" name="stock_code" value="{{ current_stock_code }}">
           <input
             type="text"
-            name="gpt_query"
+            id="gptInput"
+            name="message"
             class="form-control"
             placeholder="Ask our AI assistant..."
             required
@@ -73,30 +74,20 @@
     </form>
   </div>
 
-  <!-- Error Section -->
   {% if error %}
     <div class="error">
       {{ error }}
     </div>
   {% endif %}
 
-  <!-- Charts and Chat Section -->
   {% if chat_history %}
+    {% set chat = chat_history[-1] %}
     <div class="row-main">
-      <!-- Include the sidebar -->
       {% include "sidebar.html" %}
-
-      <!-- Main Content for Selected Chat -->
       <div class="main-content" id="mainContent">
-        {% for chat in chat_history %}
-          {% set chat_id = loop.index0 %}
-          <div
-            class="chat-panel"
-            data-chat-id="{{ chat_id }}"
-            {% if chat_id != active_chat_id %}style="display:none;"{% endif %}
-          >
-            <h4>{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
-
+        <div class="chat-panel">
+          <h4>{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
+          <div id="chatDisplay">
             {% if chat.user_query %}
               <div class="chat-message user">
                 <div class="message">
@@ -104,7 +95,6 @@
                 </div>
               </div>
             {% endif %}
-            
             {% if chat.gpt_answer %}
               <div class="chat-message assistant">
                 <div class="message">
@@ -112,53 +102,97 @@
                 </div>
               </div>
             {% endif %}
-
-            <!-- Display Charts Related to This Chat (Only for Active Chat) -->
-            {% if chat_id == active_chat_id and charts %}
-              <div class="charts-section mt-4">
-                <h5>Candlestick Charts</h5>
-                {% for interval, chart_data in charts.items() %}
-                  <div class="chart-container mb-4" id="chart_container_{{ chat_id }}_{{ interval }}">
-                    <div class="d-flex justify-content-between align-items-center">
-                      <h6>{{ interval }} Interval</h6>
-                      <!-- Fullscreen Button -->
-                      <button 
-                        class="btn btn-secondary btn-sm" 
-                        onclick="toggleFullscreen('chart_container_{{ chat_id }}_{{ interval }}')">
-                        Fullscreen
-                      </button>
-                    </div>
-                    
-                    <div class="toggle-section mb-2">
-                      <label for="fresh_toggle_{{ chat_id }}_{{ interval }}">
-                        Show only fresh demand zones:
-                      </label>
-                      <label class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="fresh_toggle_{{ chat_id }}_{{ interval }}"
-                          onchange="toggleFreshZones({{ chat_id }}, '{{ interval }}')"
-                        />
-                        <span class="slider"></span>
-                      </label>
-                    </div>
-
-                    <div id="chart_all_zones_{{ chat_id }}_{{ interval }}">
-                      {{ chart_data.all_zones | safe }}
-                    </div>
-                    <div
-                      id="chart_fresh_zones_{{ chat_id }}_{{ interval }}"
-                      style="display:none;"
-                    >
-                      {{ chart_data.fresh_zones | safe }}
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
-            {% endif %}
           </div>
-        {% endfor %}
+
+          {% if charts %}
+            <div class="charts-section mt-4">
+              <h5>Candlestick Charts</h5>
+              {% for interval, chart_data in charts.items() %}
+                <div class="chart-container mb-4" id="chart_container_{{ interval }}">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h6>{{ interval }} Interval</h6>
+                    <button 
+                      class="btn btn-secondary btn-sm" 
+                      onclick="toggleFullscreen('chart_container_{{ interval }}')">
+                      Fullscreen
+                    </button>
+                  </div>
+                  <div class="toggle-section mb-2">
+                    <label for="fresh_toggle_{{ interval }}">
+                      Show only fresh demand zones:
+                    </label>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        id="fresh_toggle_{{ interval }}"
+                        onchange="toggleFreshZones('{{ interval }}')"
+                      />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                  <div id="chart_all_zones_{{ interval }}">
+                    {{ chart_data.all_zones | safe }}
+                  </div>
+                  <div id="chart_fresh_zones_{{ interval }}" style="display:none;">
+                    {{ chart_data.fresh_zones | safe }}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
   {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const gptForm = document.getElementById('gptForm');
+  if (gptForm) {
+    gptForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const userInput = document.getElementById('gptInput');
+      const userMessage = userInput.value.trim();
+      if (!userMessage) return;
+
+      try {
+        const response = await fetch('/send_message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({ message: userMessage })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          updateChatDisplay(userMessage, data.message);
+          userInput.value = "";
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+  }
+
+  function updateChatDisplay(userMsg, gptMsg) {
+    const chatDisplay = document.getElementById('chatDisplay');
+    if (chatDisplay) {
+      chatDisplay.innerHTML = `
+        <div class="chat-message user">
+          <div class="message"><strong>You:</strong> ${userMsg}</div>
+        </div>
+        <div class="chat-message assistant">
+          <div class="message"><strong>GPT:</strong> ${gptMsg}</div>
+        </div>
+      `;
+    }
+  }
+});
+</script>
 {% endblock %}

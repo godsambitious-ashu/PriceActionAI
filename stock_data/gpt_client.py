@@ -7,32 +7,20 @@ import numpy as np
 
 class GPTClient:
     def __init__(self, api_key):
-        """
-        Initializes the GPTClient with the provided OpenAI API key.
-        
-        Args:
-            api_key (str): Your OpenAI API key.
-        """
         if not api_key:
             raise ValueError("OpenAI API key is required.")
-        
         self.client = OpenAI(api_key=api_key)
 
     def call_gpt(self, user_query, demand_zones_combined):
-        """
-        Calls OpenAI's GPT API using the ChatCompletion endpoint.
-        Returns the GPT response text.
-
-        Args:
-            user_query (str): The user's query string.
-            demand_zones_fresh_dict (dict): Dictionary containing fresh demand zones data.
-
-        Returns:
-            str: GPT-generated analysis or error message.
-        """
+        # Log the type before serialization
+        logging.debug("Type before calling serialize_demand_zones: %s", type(demand_zones_combined))
+        logging.debug("Original demand_zones_combined: %s", demand_zones_combined)
+        
         try:
             demand_zones_combined_json = self.serialize_demand_zones(demand_zones_combined)
+            logging.debug("Serialized zones JSON: %s", demand_zones_combined_json)
         except Exception as e:
+            logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
 
         messages = [
@@ -53,11 +41,10 @@ class GPTClient:
             {"role": "user", "content": f"Here is the zones data:\n{demand_zones_combined_json}"},
             {"role": "user", "content": "Please provide the analysis with the entry point and stop-loss calculation as per the instructions."},
         ]
-        
-
 
         for msg in messages:
             if not isinstance(msg['content'], str):
+                logging.error("Non-string content found in message: %s", msg)
                 return "An error occurred while preparing the GPT request."
         
         logging.info("Sending GPT request with messages: %s", messages)
@@ -72,22 +59,15 @@ class GPTClient:
             gpt_answer = completion.choices[0].message.content.strip()
             return gpt_answer
         except Exception as e:
+            logging.error(f"Error during GPT call: {e}")
             return f"Sorry, there was an error processing your request: {e}"
 
     def serialize_demand_zones(self, demand_zones_dict):
-        """
-        Recursively serialize the demand zones dictionary to ensure all components are JSON-serializable,
-        excluding 'dates', 'zone_id', and 'candles' data. All float values are rounded to two decimals.
-    
-        Args:
-            demand_zones_dict (dict): The original demand zones data.
-    
-        Returns:
-            str: A JSON-formatted string of the serialized demand zones.
-        """
+        # Check for non-dictionary input and log the type
         if not isinstance(demand_zones_dict, dict):
+            logging.error(f"serialize_demand_zones expected dict but got type: {type(demand_zones_dict)}")
             return "{}"
-    
+        
         serialized = {}
         for key, value in demand_zones_dict.items():
             if isinstance(value, list):
@@ -108,7 +88,6 @@ class GPTClient:
                         elif isinstance(zone_value, datetime):
                             serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
                         elif isinstance(zone_value, (np.float64, np.float32)):
-                            # Round float values to two decimals
                             serialized_zone[zone_key] = round(float(zone_value), 2)
                         elif isinstance(zone_value, (np.int64, np.int32)):
                             serialized_zone[zone_key] = int(zone_value)
@@ -141,64 +120,17 @@ class GPTClient:
                     serialized[key] = value
     
         try:
+            logging.debug("Serialized dict before json.dumps: %s", serialized)
             serialized_json = json.dumps(serialized, indent=2)
-        except (TypeError, Exception):
+        except (TypeError, Exception) as e:
+            logging.error(f"Serialization error: {e}")
             return "{}"
-    
+        
+        logging.debug("Successfully serialized JSON: %s", serialized_json)
         return serialized_json
     
     def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price):
-        """
-        Combines 1mo fresh zones with 1d ALL zones that fall within the 1mo proximal-distal range.
-        Removes demand zones whose distal line is greater than the current market price.
-        Allows daily zones whose first date is in the month of the monthly zone's first candle 
-        or in the month of the monthly zone's second candle.
-        
-        Candle Patterns for Zones:
-            - Pattern 1: 
-                Candles list consists of exactly two items:
-                [
-                    {
-                        'date': <First Date>,
-                        'type': 'First (Red Exciting)',
-                        ...
-                    },
-                    {
-                        'date': <Second Date>,
-                        'type': 'Second (Green Exciting)',
-                        ...
-                    }
-                ]
-            - Pattern 2:
-                Candles list starts with a 'First' candle, followed by one or more 'Base' candles, 
-                and ends with a 'Second' candle.
-                Example:
-                [
-                    { 'date': <First Date>, 'type': 'First', ... },
-                    { 'date': <Base Date 1>, 'type': 'Base', ... },
-                    { 'date': <Base Date 2>, 'type': 'Base', ... },
-                    ...,
-                    { 'date': <Second Date>, 'type': 'Second', ... }
-                ]
-    
-        Note:
-            - The function uses the first two candles in the list to determine date ranges, 
-              which is compatible with both patterns as long as at least two candles exist.
-            - If additional handling based on candle types is needed, further logic can be added.
-        
-        Args:
-            monthly_fresh_zones (list): List of fresh demand zone dicts for the 1mo interval.
-            daily_all_zones (list or dict): List or dict of ALL demand zone dicts for the 1d interval.
-            current_market_price (float): The current market price to filter demand zones.
-    
-        Returns:
-            dict: A dictionary in the expected format, e.g.:
-                  {
-                      "1mo": [...],
-                      "1d": [...]
-                  }
-                  or an empty dict if nothing matches.
-        """
+
         logging.debug(f"daily 1d fresh zones: {daily_all_zones}")
         if not monthly_fresh_zones or not daily_all_zones:
             return {}
