@@ -265,6 +265,7 @@ class DemandZoneManager:
         monthly_all_zones = []
         daily_all_zones = {'demand': [], 'supply': []}
         current_market_price = None
+        fresh_demand_zones_1d = []
 
         for interval in intervals:
             result = self.process_single_interval(interval, period)
@@ -301,6 +302,7 @@ class DemandZoneManager:
                 if isinstance(result['all_zones'], dict):
                     daily_all_zones = result['all_zones']
                     current_market_price = result.get('current_price')
+                fresh_demand_zones_1d = result['fresh_zones']['demand']
 
         return (
             charts,
@@ -310,5 +312,6 @@ class DemandZoneManager:
             all_supply_zones_fresh,
             monthly_all_zones,
             daily_all_zones,
-            current_market_price
+            current_market_price,
+            fresh_demand_zones_1d
         )

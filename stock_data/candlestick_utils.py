@@ -83,7 +83,6 @@ class CandleStickUtils:
     def markDemandZoneInfoOnChart(stock_code, fig, demand_zones, colors):
         for zone in demand_zones:
             color = next(colors)
-            logging.debug(f"Adding shapes for pattern at index {zone['dates'][0]}")
             # Draw rectangle for each zone
             fig.add_shape(
                 type='rect',
@@ -92,8 +91,6 @@ class CandleStickUtils:
                 line=dict(color=color, width=2),
                 fillcolor=color, opacity=0.3,
             )
-            logging.debug(f"Proximal line added at {zone['dates'][0]}")
-            logging.debug(f"Distal line added at {zone['dates'][0]}")
 
         fig.update_layout(
             title=f'Candlestick Chart for {stock_code}',

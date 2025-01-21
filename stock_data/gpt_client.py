@@ -36,12 +36,25 @@ class GPTClient:
             return f"Sorry, there was an error processing your data: {e}"
 
         messages = [
-            {"role": "system", "content": "You are a financial assistant specializing in analyzing stock data and recommending entry points based on demand zones. If no demand zones are found, dont recommend"},
-            {"role": "system", "content": "Check zoneType in the request if its demand. If no demand zones are found then dont reccomend otherwise only reply with the best entry calculated entry point"},
-            {"role": "user", "content": f"User Query: {user_query}"},
-            {"role": "user", "content": f"Here are the demand zones (demand_zones_fresh):\n{demand_zones_combined_json}"},
+            {
+                "role": "system",
+                "content": (
+                    "You are a financial assistant specializing in analyzing stock data to recommend entry points based on demand zones. "
+                    "Follow these guidelines strictly:\n"
+                    "1. Only consider zones where 'zoneType' is 'demand'. If no such zones exist, do not provide a recommendation.\n"
+                    "2. If multiple 1-day demand zones have similar prices, combine them into one zone.\n"
+                    "3. Calculate the entry point as 2% above the highest point of the combined zone and the stop-loss as 2% below the lowest point.\n"
+                    "4. Respond in plain, friendly English with a greeting and a clear final recommendation. "
+                    "   Do not include technical details, calculations, or jargon.\n"
+                    "5. If the user message contains technical details, ignore those details and only use the final computed values for your recommendation."
+                )
+            },
+            {"role": "user", "content": f"{user_query}"},
+            {"role": "user", "content": f"Here is the zones data:\n{demand_zones_combined_json}"},
             {"role": "user", "content": "Please provide the analysis with the entry point and stop-loss calculation as per the instructions."},
         ]
+        
+
 
         for msg in messages:
             if not isinstance(msg['content'], str):
@@ -51,7 +64,7 @@ class GPTClient:
 
         try:
             completion = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini-2024-07-18",
                 messages=messages,
                 max_tokens=500,
                 temperature=0.7
@@ -138,10 +151,41 @@ class GPTClient:
         """
         Combines 1mo fresh zones with 1d ALL zones that fall within the 1mo proximal-distal range.
         Removes demand zones whose distal line is greater than the current market price.
-        Ensures that the date of daily zone formation is within the same month as the monthly zone
-        and that the second candle date of the daily demand zone is after the first candle date
-        of the monthly zone and before the second candle date of the monthly zone.
+        Allows daily zones whose first date is in the month of the monthly zone's first candle 
+        or in the month of the monthly zone's second candle.
+        
+        Candle Patterns for Zones:
+            - Pattern 1: 
+                Candles list consists of exactly two items:
+                [
+                    {
+                        'date': <First Date>,
+                        'type': 'First (Red Exciting)',
+                        ...
+                    },
+                    {
+                        'date': <Second Date>,
+                        'type': 'Second (Green Exciting)',
+                        ...
+                    }
+                ]
+            - Pattern 2:
+                Candles list starts with a 'First' candle, followed by one or more 'Base' candles, 
+                and ends with a 'Second' candle.
+                Example:
+                [
+                    { 'date': <First Date>, 'type': 'First', ... },
+                    { 'date': <Base Date 1>, 'type': 'Base', ... },
+                    { 'date': <Base Date 2>, 'type': 'Base', ... },
+                    ...,
+                    { 'date': <Second Date>, 'type': 'Second', ... }
+                ]
     
+        Note:
+            - The function uses the first two candles in the list to determine date ranges, 
+              which is compatible with both patterns as long as at least two candles exist.
+            - If additional handling based on candle types is needed, further logic can be added.
+        
         Args:
             monthly_fresh_zones (list): List of fresh demand zone dicts for the 1mo interval.
             daily_all_zones (list or dict): List or dict of ALL demand zone dicts for the 1d interval.
@@ -155,7 +199,7 @@ class GPTClient:
                   }
                   or an empty dict if nothing matches.
         """
-    
+        logging.debug(f"daily 1d fresh zones: {daily_all_zones}")
         if not monthly_fresh_zones or not daily_all_zones:
             return {}
     
@@ -169,7 +213,9 @@ class GPTClient:
                 if isinstance(value, list):
                     flattened.extend(value)
                 elif isinstance(value, dict):
-                    flattened.extend(value.values() if isinstance(value.values(), list) else [])
+                    for v in value.values():
+                        if isinstance(v, list):
+                            flattened.extend(v)
             daily_all_zones = flattened
         elif not isinstance(daily_all_zones, list):
             return {}
@@ -199,11 +245,19 @@ class GPTClient:
             mo_proximal = monthly_zone.get('proximal')
             mo_distal = monthly_zone.get('distal')
             monthly_dates = monthly_zone.get("dates")
+            monthly_candles = monthly_zone.get("candles", [])
     
-            # Determine the month and year for the monthly zone, if available
-            month_year = None
-            if monthly_dates is not None and len(monthly_dates) > 0:
-                month_year = (monthly_dates[0].month, monthly_dates[0].year)
+            # Ensure monthly zone has at least two candles for reference
+            if not monthly_candles or len(monthly_candles) < 2:
+                continue
+            
+            # Get month/year for the first two monthly candles
+            first_month_year = None
+            second_month_year = None
+            if monthly_candles[0].get("date"):
+                first_month_year = (monthly_candles[0]["date"].month, monthly_candles[0]["date"].year)
+            if monthly_candles[1].get("date"):
+                second_month_year = (monthly_candles[1]["date"].month, monthly_candles[1]["date"].year)
     
             if mo_proximal is None or mo_distal is None:
                 continue
@@ -215,48 +269,49 @@ class GPTClient:
                 daily_prox = daily_zone.get('proximal')
                 daily_dist = daily_zone.get('distal')
                 daily_dates = daily_zone.get("dates")
+                daily_candles = daily_zone.get("candles", [])
     
-                # Determine the month and year for the daily zone, if available
-                daily_month_year = None
-                if daily_dates is not None and len(daily_dates) > 0:
+                # Ensure daily zone has at least two candles for comparison
+                if not daily_candles or len(daily_candles) < 2:
+                    continue
+                
+                # Check if daily zone's first date falls within allowed monthly months
+                if daily_dates is not None and len(daily_dates) > 0 and first_month_year and second_month_year:
                     daily_month_year = (daily_dates[0].month, daily_dates[0].year)
-    
-                # If both month_year values are available and don't match, skip this daily zone
-                if month_year is not None and daily_month_year is not None:
-                    if daily_month_year != month_year:
+                    # Allow daily if its month/year matches the first or second month of the monthly zone
+                    if daily_month_year != first_month_year and daily_month_year != second_month_year:
                         continue
                     
                 if daily_prox is None or daily_dist is None:
                     continue
                 
+                # Example modification to in_range check:
                 try:
-                    in_range = (float(daily_prox) <= float(mo_proximal)) and (float(daily_dist) >= float(mo_distal))
+                    in_range = (int(daily_prox) <= int(mo_proximal)) and (int(daily_dist) >= int(mo_distal))
                 except (TypeError, ValueError):
                     continue
                 
-                if in_range:
-                    # New date criteria: Check second candle date of daily zone against monthly candles
-                    monthly_candles = monthly_zone.get("candles", [])
-                    daily_candles = daily_zone.get("candles", [])
-                    # Ensure both monthly and daily zones have at least two candles
-                    if len(monthly_candles) < 2 or len(daily_candles) < 2:
-                        continue
-                    
-                    monthly_first_date = monthly_candles[0].get("date")
-                    monthly_second_date = monthly_candles[1].get("date")
-                    daily_second_date = daily_candles[1].get("date")
-    
-                    # Check that the daily second candle date falls after monthly first and before monthly second candle dates
-                    if not (monthly_first_date < daily_second_date < monthly_second_date):
-                        continue
-                    
-                    if daily_zone.get("zoneType") == "Demand":
-                        try:
-                            if float(daily_dist) > current_market_price:
-                                continue
-                        except (TypeError, ValueError):
+                
+                if not in_range:
+                    continue
+                
+                monthly_first_date = monthly_candles[0].get("date")
+                daily_first_date = daily_candles[0].get("date")  # Use first candle of daily zone
+                monthly_last_date = monthly_candles[-1].get("date")
+
+                # Lower bound: daily first date must be on/after monthly first date.
+                # Upper bound: daily first date must be before the last monthly candle date.
+                if not (monthly_first_date <= daily_first_date < monthly_last_date):
+                    continue
+
+                if daily_zone.get("zoneType") == "Demand":
+                    try:
+                        if float(daily_dist) > current_market_price:
                             continue
-                    result["1d"].append(daily_zone)
+                    except (TypeError, ValueError):
+                        continue
+                    
+                result["1d"].append(daily_zone)
     
         return result
     
