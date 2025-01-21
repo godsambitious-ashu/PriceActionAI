@@ -35,34 +35,7 @@ body {
     position: relative;
   }
   
-  /* Sidebar */
-  .sidebar {
-    height: 80vh;
-    overflow-y: auto;
-    border-right: 1px solid #e0e0e0;
-    padding-right: 15px;
-    position: absolute; /* Absolutely positioned */
-    top: 0;
-    left: 0;
-    width: 240px; /* Default expanded width */
-    transition: width 0.3s;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  }
-  
-  .sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  
-  .sidebar-header h5 {
-    margin: 0;
-    font-size: 1rem;
-  }
+
   
   .minimize-btn {
     background: none;
@@ -89,21 +62,12 @@ body {
     background-color: #f1f1f1;
   }
   
-  /* Minimized Sidebar */
-  .sidebar.minimized {
-    width: 60px; /* Minimized width */
-    padding-right: 0;
-  }
-  
-  .sidebar.minimized .chat-heading {
-    padding: 10px 10px;
-    text-align: center;
-  }
-  
   /* Main Content */
   .main-content {
     position: relative;
-    margin-left: 240px; /* Align with the default sidebar width */
+    /* Remove or adjust the margin-left set for the sidebar */
+    /* margin-left: 240px; */
+    margin: 0 auto; /* This centers the box horizontally within its container */
     padding: 20px;
     height: 80vh;
     overflow-y: auto;
@@ -111,11 +75,9 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     transition: margin-left 0.3s;
+    width: 100%; /* Ensure it spans the container width */
   }
   
-  .main-content.expanded {
-    margin-left: 60px; /* If sidebar is minimized */
-  }
   
   /* Chat Messages */
   .chat-message {
@@ -242,3 +204,34 @@ body {
       padding: 10px;
     }
   }
+  /* Force entire fullscreen background to white */
+:-webkit-full-screen,
+:-moz-full-screen,
+:-ms-fullscreen,
+:fullscreen {
+  background-color: #fff !important;
+}
+
+/* Ensure any canvas in fullscreen has a white background */
+:-webkit-full-screen canvas,
+:-moz-full-screen canvas,
+:-ms-fullscreen canvas,
+:fullscreen canvas {
+  background-color: #fff !important;
+}
+
+/* Specific chart container fullscreen styling */
+.chart-container:fullscreen,
+.chart-container:-webkit-full-screen,
+.chart-container:-moz-full-screen,
+.chart-container:-ms-fullscreen {
+  background-color: #fff !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.chart-container:fullscreen canvas,
+.chart-container:-webkit-full-screen canvas,
+.chart-container:-moz-full-screen canvas,
+.chart-container:-ms-fullscreen canvas {
+  background-color: #fff !important;
+}

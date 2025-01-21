@@ -1,6 +1,35 @@
+{# index.html #}
 {% extends "base.html" %}
 
-{% block title %}Stock Data Visualization{% endblock %}
+{% block title %}
+  Stock Data Visualization
+{% endblock %}
+
+{% block head %}
+  <style>
+    /* Remove centering constraints to allow full-width usage */
+    .row-main {
+      padding: 2rem 1rem;
+      /* Remove justify-content if it restricts chart expansion */
+    }
+    .main-content {
+      width: 100%;
+      max-width: none; /* Allow content to span full width */
+      margin: 0 auto;
+    }
+    .chart-container {
+      background-color: #fff;
+      padding: 1rem;
+      margin: 1rem 0; /* Use vertical margin only */
+      width: 100%;     /* Let the container fill the available width */
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    /* ... any other necessary style adjustments ... */
+  </style>
+{% endblock %}
+
+
 
 {% block gpt_section %}
   {% if enable_gpt %}
@@ -27,13 +56,13 @@
 {% endblock %}
 
 {% block content %}
-  <!-- User Information Display -->
+  <!-- User Info -->
   <div class="user-info text-center mb-4">
     <h2>Welcome, {{ name }}!</h2>
     <p>Your email: {{ email }}</p>
   </div>
 
-  <!-- Form Section -->
+  <!-- Search Form -->
   <div class="form-section mb-5">
     <h1>Stock Data Visualization</h1>
     <form method="POST">
@@ -75,45 +104,42 @@
   </div>
 
   {% if error %}
-    <div class="error">
+    <div class="error text-center text-danger mb-4">
       {{ error }}
     </div>
   {% endif %}
 
+  <!-- Display last chat entry if exists -->
   {% if chat_history %}
     {% set chat = chat_history[-1] %}
     <div class="row-main">
-      {% include "sidebar.html" %}
-      <div class="main-content" id="mainContent">
+      <div class="main-content">
         <div class="chat-panel">
-          <h4>{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
+          <h4 class="text-center">{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
           <div id="chatDisplay">
             {% if chat.user_query %}
               <div class="chat-message user">
-                <div class="message">
-                  <strong>You:</strong> {{ chat.user_query }}
-                </div>
+                <div class="message"><strong>You:</strong> {{ chat.user_query }}</div>
               </div>
             {% endif %}
             {% if chat.gpt_answer %}
               <div class="chat-message assistant">
-                <div class="message">
-                  <strong>GPT:</strong> {{ chat.gpt_answer }}
-                </div>
+                <div class="message"><strong>GPT:</strong> {{ chat.gpt_answer }}</div>
               </div>
             {% endif %}
           </div>
 
           {% if charts %}
             <div class="charts-section mt-4">
-              <h5>Candlestick Charts</h5>
+              <h5 class="text-center">Candlestick Charts</h5>
               {% for interval, chart_data in charts.items() %}
                 <div class="chart-container mb-4" id="chart_container_{{ interval }}">
                   <div class="d-flex justify-content-between align-items-center">
                     <h6>{{ interval }} Interval</h6>
-                    <button 
-                      class="btn btn-secondary btn-sm" 
-                      onclick="toggleFullscreen('chart_container_{{ interval }}')">
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      onclick="toggleFullscreen('chart_container_{{ interval }}')"
+                    >
                       Fullscreen
                     </button>
                   </div>
@@ -149,11 +175,11 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // GPT Form Submission
   const gptForm = document.getElementById('gptForm');
   if (gptForm) {
     gptForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-
       const userInput = document.getElementById('gptInput');
       const userMessage = userInput.value.trim();
       if (!userMessage) return;
@@ -166,7 +192,6 @@ document.addEventListener('DOMContentLoaded', function() {
           },
           body: new URLSearchParams({ message: userMessage })
         });
-
         const data = await response.json();
         if (data.error) {
           alert(data.error);
@@ -180,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Update Chat Display
   function updateChatDisplay(userMsg, gptMsg) {
     const chatDisplay = document.getElementById('chatDisplay');
     if (chatDisplay) {
@@ -193,6 +219,40 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
     }
   }
+
+  // Fullscreen Toggle
+  window.toggleFullscreen = function(elementId) {
+  const chartContainer = document.getElementById(elementId);
+  if (!document.fullscreenElement) {
+    chartContainer.requestFullscreen().then(() => {
+      // After entering fullscreen, force canvas background white
+      const canvases = chartContainer.getElementsByTagName('canvas');
+      for (const canvas of canvases) {
+        canvas.style.backgroundColor = 'white';
+      }
+    }).catch(err => {
+      alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+
+  // Toggle Fresh Zones
+  window.toggleFreshZones = function(interval) {
+    const allZonesDiv = document.getElementById(`chart_all_zones_${interval}`);
+    const freshZonesDiv = document.getElementById(`chart_fresh_zones_${interval}`);
+    const checkbox = document.getElementById(`fresh_toggle_${interval}`);
+
+    if (checkbox.checked) {
+      allZonesDiv.style.display = 'none';
+      freshZonesDiv.style.display = 'block';
+    } else {
+      allZonesDiv.style.display = 'block';
+      freshZonesDiv.style.display = 'none';
+    }
+  };
 });
 </script>
 {% endblock %}
