@@ -296,7 +296,7 @@ class DemandZoneManager:
             except (AttributeError, KeyError):
                 continue
 
-            if interval == '1mo':
+            if interval == '1mo' or interval == '3mo':
                 if isinstance(result['all_zones']['demand'], list) and isinstance(result['all_zones']['supply'], list):
                     monthly_all_zones = result['all_zones']['demand'] + result['all_zones']['supply']
             if interval == '1d':

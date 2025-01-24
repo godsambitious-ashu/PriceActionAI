@@ -19,6 +19,7 @@ class GPTClient:
         except Exception as e:
             logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
+        logging.info("demand zones combined final : %s", demand_zones_combined)
 
         messages = [
             {
@@ -244,7 +245,9 @@ class GPTClient:
                 result["1d"].append(daily_zone)
     
         self.addWeeklyDzIfDailyAreAbsent(current_market_price, wk_demand_zones, filtered_monthly, result)
-
+       
+        # After processing all zones, retain only the nearest supply zone
+        result = self.retain_nearest_supply_zone(result, current_market_price)
         return result
 
     def addWeeklyDzIfDailyAreAbsent(
@@ -379,8 +382,6 @@ class GPTClient:
                     # Initialize '1d' key as a list if it doesn't exist
                     result.setdefault("1d", []).append(wk_zone)
 
-        # After processing all zones, retain only the nearest supply zone
-        result = self.retain_nearest_supply_zone(result, current_market_price)
 
         return result
 
