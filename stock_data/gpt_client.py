@@ -12,35 +12,53 @@ class GPTClient:
             raise ValueError("OpenAI API key is required.")
         self.client = OpenAI(api_key=api_key)
 
-    def call_gpt(self, user_query, demand_zones_combined):
+    def call_gpt(self, user_query, zone_dto):
         
         try:
-            demand_zones_combined_json = self.serialize_demand_zones(demand_zones_combined)
+            zone_dto_json = self.serialize_demand_zones(zone_dto)
         except Exception as e:
             logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
-        logging.info("demand zones combined final : %s", demand_zones_combined)
-
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are a financial assistant specializing in analyzing stock data to recommend entry points based on demand zones. "
-                    "Follow these guidelines strictly:\n"
-                    "1. Only consider zones where 'zoneType' is 'demand'. If no such zones exist, do not provide a recommendation.\n"
-                    "2. If multiple 1-day demand zones have similar prices, combine them into one zone.\n"
-                    "4. You will first look at 1d as interval and if not found then 1wk as interval for finding entry in zonetype as demand\\n"
-                    "5. Recommend the target as proximal of zoneType SUPPLY strictly\n"
-                    "5. Calculate the entry point as 2% above the highest point of the combined zone and the stop-loss as 2% below the lowest point.\n"
-                    "6. Respond in plain, friendly English with a greeting and a clear final recommendation. "
-                    "   Do not include technical details, calculations, or jargon.\n"
-                    "7. If the user message contains technical details, ignore those details and only use the final computed values for your recommendation."
+                    "You are a friendly and knowledgeable financial assistant specializing in stock analysis. "
+                    "Your task is to recommend optimal entry points and target prices for stocks based on provided demand zones data. "
+                    "Please adhere to the following guidelines strictly:\n"
+                    "1. If the '3mo_demand_zone' is present and not empty, use it to recommend a primary buying range. If it's absent or empty, use the '1mo_demand_zone'.\n"
+                    "2. For the selected demand zone, recommend it as one of the finest buying ranges for the stock.\n"
+                    "3. Suggest multiple entry points within the buying range, each accompanied by a corresponding stop-loss.\n"
+                    "4. Recommend the target price based on the 'target' value in the data.\n"
+                    "5. Do not mention, reference, or summarize the provided zones data in your response.\n"
+                    "6. Do not include any technical details, calculations, or jargon. Keep your language plain, friendly, and focused solely on the recommendations.\n"
+                    "7. Follow the response format exactly as shown in the example below:\n"
+                    "   **Example Response:**\n"
+                    "   This is a great stock pick, I see a potential buying range of this stock ranging from 130.00-120.00. In this range, I feel the best entry points are 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). The target can be set to 180.27. Happy investing!\n"
+                    "8. If neither '3mo_demand_zone' nor '1mo_demand_zone' is available, respond with:\n"
+                    "   'At this point, I don't see a potential buying opportunity for this stock. There are many others that might have one—try a different one. Happy investing!'"
                 )
             },
-            {"role": "user", "content": f"{user_query}"},
-            {"role": "user", "content": f"Here is the zones data:\n{demand_zones_combined_json}"},
-            {"role": "user", "content": "Please provide the analysis with the entry point and stop-loss calculation as per the instructions."},
+            {
+                "role": "user",
+                "content": f"{user_query}"
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Here is the zones data:\n{zone_dto_json}"
+                )
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Please provide an analysis with the recommended entry points, stop-loss levels, and target price based on the above zones data."
+                )
+            },
         ]
+        
+
+        
 
         for msg in messages:
             if not isinstance(msg['content'], str):
@@ -63,65 +81,48 @@ class GPTClient:
             return f"Sorry, there was an error processing your request: {e}"
 
     def serialize_demand_zones(self, demand_zones_dict):
+        """
+        Serializes the zone_dto to a JSON string with rounded float values.
+
+        Parameters:
+            demand_zones_dict (dict): The DTO dictionary to serialize. Expected structure:
+                {
+                    "3mo_demand_zone": "130-120",
+                    "1mo_demand_zone": "159.94-137.0",
+                    "entries": [
+                        {"entry": 142.08, "stoploss": 137.0},
+                        {"entry": 145.5, "stoploss": 139.0}
+                    ],
+                    "target": 180.27
+                }
+
+        Returns:
+            str: A JSON-formatted string representing the DTO.
+        """
         # Check for non-dictionary input and log the type
         if not isinstance(demand_zones_dict, dict):
             logging.error(f"serialize_demand_zones expected dict but got type: {type(demand_zones_dict)}")
             return "{}"
         
-        serialized = {}
-        for key, value in demand_zones_dict.items():
-            if isinstance(value, list):
-                serialized_zones = []
-                for zone in value:
-                    if not isinstance(zone, dict):
-                        continue
-                    serialized_zone = {}
-                    for zone_key, zone_value in zone.items():
-                        # Skip unwanted keys at the zone level
-                        if zone_key in ["dates", "zone_id", "candles"]:
-                            continue
-                        
-                        if isinstance(zone_value, pd.DatetimeIndex):
-                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S').tolist()
-                        elif isinstance(zone_value, pd.Timestamp):
-                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
-                        elif isinstance(zone_value, datetime):
-                            serialized_zone[zone_key] = zone_value.strftime('%Y-%m-%d %H:%M:%S')
-                        elif isinstance(zone_value, (np.float64, np.float32)):
-                            serialized_zone[zone_key] = round(float(zone_value), 2)
-                        elif isinstance(zone_value, (np.int64, np.int32)):
-                            serialized_zone[zone_key] = int(zone_value)
-                        elif isinstance(zone_value, list):
-                            serialized_list = []
-                            for item in zone_value:
-                                if isinstance(item, (np.float64, np.float32)):
-                                    serialized_list.append(round(float(item), 2))
-                                elif isinstance(item, (np.int64, np.int32)):
-                                    serialized_list.append(int(item))
-                                elif isinstance(item, datetime):
-                                    serialized_list.append(item.strftime('%Y-%m-%d %H:%M:%S'))
-                                else:
-                                    serialized_list.append(item)
-                            serialized_zone[zone_key] = serialized_list
-                        else:
-                            serialized_zone[zone_key] = zone_value
-                    serialized_zones.append(serialized_zone)
-                serialized[key] = serialized_zones
+        # Function to recursively round floats in the dictionary
+        def round_floats(obj):
+            if isinstance(obj, dict):
+                return {k: round_floats(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [round_floats(item) for item in obj]
+            elif isinstance(obj, float):
+                return round(obj, 2)
+            elif isinstance(obj, (np.float64, np.float32)):
+                return round(float(obj), 2)
             else:
-                if isinstance(value, pd.Timestamp):
-                    serialized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                elif isinstance(value, datetime):
-                    serialized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                elif isinstance(value, (np.float64, np.float32)):
-                    serialized[key] = round(float(value), 2)
-                elif isinstance(value, (np.int64, np.int32)):
-                    serialized[key] = int(value)
-                else:
-                    serialized[key] = value
-    
+                return obj
+        
+        # Apply rounding to all float values in the DTO
+        rounded_dict = round_floats(demand_zones_dict)
+        
         try:
-            logging.debug("Serialized dict before json.dumps: %s", serialized)
-            serialized_json = json.dumps(serialized, indent=2)
+            logging.debug("Serialized dict before json.dumps: %s", rounded_dict)
+            serialized_json = json.dumps(rounded_dict, indent=2)
         except (TypeError, Exception) as e:
             logging.error(f"Serialization error: {e}")
             return "{}"
@@ -248,7 +249,9 @@ class GPTClient:
        
         # After processing all zones, retain only the nearest supply zone
         result = self.retain_nearest_supply_zone(result, current_market_price)
-        return result
+        dto = self.build_zones_dto(result, current_market_price)
+
+        return dto
 
     def addWeeklyDzIfDailyAreAbsent(
         self,
@@ -435,3 +438,126 @@ class GPTClient:
                 ]
 
         return result
+    
+
+    def build_zones_dto(self, zones_result: dict, current_market_price: float) -> dict:
+        """
+        Constructs a Data Transfer Object (DTO) from the provided zones_result.
+
+        Parameters:
+            zones_result (dict): The dictionary containing processed zones from prepare_zones.
+            current_market_price (float): The current market price for determining the target.
+
+        Returns:
+            dict: A DTO with:
+                  - "3mo_demand_zone": "proximal-distal" string (e.g., "130.00-120.00"),
+                                         or None if not found.
+                  - "1mo_demand_zone": "proximal-distal" string (e.g., "159.94-137.00"),
+                                         or None if not found.
+                  - "entries": List of dictionaries with "entry" and "stoploss".
+                  - "target": Target price (float), or None if not found.
+        """
+
+        # DTO structure to be returned
+        dto = {
+            "3mo_demand_zone": None,
+            "1mo_demand_zone": None,
+            "entries": [],
+            "target": None
+        }
+
+        # -- 1) Find the 3mo Demand Zone from result["1mo"]
+        three_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
+        if three_mo_zone:
+            proximal = three_mo_zone.get("proximal")
+            distal = three_mo_zone.get("distal")
+            if proximal is not None and distal is not None:
+                try:
+                    # Ensure proximal and distal are floats and round to two decimals
+                    proximal = float(proximal)
+                    distal = float(distal)
+                    dto["3mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                except (TypeError, ValueError) as e:
+                    logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
+            else:
+                logging.warning("3mo Demand Zone found but proximal or distal is missing.")
+
+        # -- 2) Find the 1mo Demand Zone from result["1mo"]
+        one_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
+        if one_mo_zone:
+            proximal = one_mo_zone.get("proximal")
+            distal = one_mo_zone.get("distal")
+            if proximal is not None and distal is not None:
+                try:
+                    # Ensure proximal and distal are floats and round to two decimals
+                    proximal = float(proximal)
+                    distal = float(distal)
+                    dto["1mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                except (TypeError, ValueError) as e:
+                    logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
+            else:
+                logging.warning("1mo Demand Zone found but proximal or distal is missing.")
+
+        # -- 3) Collect entries from the 1d Demand Zones
+        daily_zones = zones_result.get("1d", [])
+        for dz in daily_zones:
+            if dz.get("zoneType") == "Demand":
+                entry_price = dz.get("proximal")
+                stop_loss = dz.get("distal")
+                if entry_price is not None and stop_loss is not None:
+                    try:
+                        # Ensure entry_price and stop_loss are floats and round to two decimals
+                        entry_price = float(entry_price)
+                        stop_loss = float(stop_loss)
+                        dto["entries"].append({
+                            "entry": round(entry_price, 2),
+                            "stoploss": round(stop_loss, 2)
+                        })
+                    except (TypeError, ValueError) as e:
+                        logging.error(f"Error converting entry_price/stop_loss to float in entries: {e}")
+                else:
+                    logging.warning("Daily Demand Zone found but entry_price or stop_loss is missing.")
+
+        # -- 4) Determine the target from the nearest Supply Zone
+        supply_candidates = [
+            z for z in zones_result.get("1mo", [])
+            if z.get("zoneType") == "Supply" and z.get("interval") in ("1mo", "3mo")
+        ]
+
+        if supply_candidates:
+            try:
+                # Pick the zone with proximal closest to current_market_price
+                target_zone = min(
+                    supply_candidates,
+                    key=lambda z: abs(float(z.get("proximal", 0)) - current_market_price)
+                )
+                proximal = target_zone.get("proximal")
+                if proximal is not None:
+                    proximal = float(proximal)
+                    dto["target"] = round(proximal, 2)
+                else:
+                    logging.warning("Supply Zone found but proximal is missing.")
+            except (TypeError, ValueError) as e:
+                logging.error(f"Error determining target from Supply Zones: {e}")
+        else:
+            logging.warning("No Supply Zones found with intervals '1mo' or '3mo'.")
+
+        return dto
+
+    def _get_zone(self, zones: list, zone_type: str, interval: str) -> dict:
+        """
+        Returns the first zone from 'zones' matching zone_type and interval.
+        If none is found, returns an empty dict.
+
+        Parameters:
+            zones (list): List of zone dictionaries.
+            zone_type (str): The type of zone to search for ('Demand' or 'Supply').
+            interval (str): The interval of the zone ('1mo' or '3mo').
+
+        Returns:
+            dict: The matching zone dictionary or an empty dict if not found.
+        """
+        for z in zones:
+            if z.get("zoneType") == zone_type and z.get("interval") == interval:
+                return z
+        return {}
