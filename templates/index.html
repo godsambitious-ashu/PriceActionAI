@@ -25,11 +25,62 @@
       border-radius: 5px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    /* ... any other necessary style adjustments ... */
+    /* Button Panel Styles */
+    .button-panel {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .button-panel .btn {
+      margin: 0 0.5rem;
+    }
+    /* Toggle Switch Styles (Assuming you have these styles elsewhere, else define them here) */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .slider {
+      background-color: #2196F3;
+    }
+    .toggle-switch input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    /* Optional: Active Button Styling */
+    .btn.active {
+      background-color: #0056b3;
+      border-color: #0056b3;
+    }
   </style>
 {% endblock %}
-
-
 
 {% block gpt_section %}
   {% if enable_gpt %}
@@ -132,10 +183,25 @@
           {% if charts %}
             <div class="charts-section mt-4">
               <h5 class="text-center">Candlestick Charts</h5>
+
+              <!-- Horizontal Button Panel -->
+              <div class="button-panel">
+                <button class="btn btn-primary mx-2 active" onclick="showChart('1d')">1D</button>
+                <button class="btn btn-primary mx-2" onclick="showChart('1wk')">1W</button>
+                <button class="btn btn-primary mx-2" onclick="showChart('1mo')">1M</button>
+                <button class="btn btn-primary mx-2" onclick="showChart('3mo')">3M</button>
+              </div>
+
+              <!-- Charts Loop -->
               {% for interval, chart_data in charts.items() %}
-                <div class="chart-container mb-4" id="chart_container_{{ interval }}">
+                {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
+                  <div class="chart-container mb-4" id="chart_container_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
+                {% else %}
+                  <!-- If there are other intervals, decide how to handle them -->
+                  <div class="chart-container mb-4" id="chart_container_{{ interval }}" style="display:none;">
+                {% endif %}
                   <div class="d-flex justify-content-between align-items-center">
-                    <h6>{{ interval }} Interval</h6>
+                    <h6>{{ interval|upper }} Interval</h6>
                     <button
                       class="btn btn-secondary btn-sm"
                       onclick="toggleFullscreen('chart_container_{{ interval }}')"
@@ -222,22 +288,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fullscreen Toggle
   window.toggleFullscreen = function(elementId) {
-  const chartContainer = document.getElementById(elementId);
-  if (!document.fullscreenElement) {
-    chartContainer.requestFullscreen().then(() => {
-      // After entering fullscreen, force canvas background white
-      const canvases = chartContainer.getElementsByTagName('canvas');
-      for (const canvas of canvases) {
-        canvas.style.backgroundColor = 'white';
-      }
-    }).catch(err => {
-      alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-};
-
+    const chartContainer = document.getElementById(elementId);
+    if (!document.fullscreenElement) {
+      chartContainer.requestFullscreen().then(() => {
+        // After entering fullscreen, force canvas background white
+        const canvases = chartContainer.getElementsByTagName('canvas');
+        for (const canvas of canvases) {
+          canvas.style.backgroundColor = 'white';
+        }
+      }).catch(err => {
+        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   // Toggle Fresh Zones
   window.toggleFreshZones = function(interval) {
@@ -253,6 +318,29 @@ document.addEventListener('DOMContentLoaded', function() {
       freshZonesDiv.style.display = 'none';
     }
   };
+
+  // Show/Hide Charts Based on Selected Timeframe
+  window.showChart = function(selectedInterval) {
+    // Define the intervals you have buttons for
+    const intervals = ['1d', '1wk', '1mo', '3mo'];
+
+    intervals.forEach(function(interval) {
+      const container = document.getElementById(`chart_container_${interval}`);
+      const button = document.querySelector(`.button-panel button[onclick="showChart('${interval}')"]`);
+      if (container) {
+        if (interval === selectedInterval) {
+          container.style.display = 'block';
+          if (button) button.classList.add('active');
+        } else {
+          container.style.display = 'none';
+          if (button) button.classList.remove('active');
+        }
+      }
+    });
+  };
+
+  // Initialize - Show the default chart and set active button
+  showChart('1d');
 });
 </script>
 {% endblock %}

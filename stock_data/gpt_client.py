@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-
+from typing import Dict, Any, List
 class GPTClient:
     def __init__(self, api_key):
         if not api_key:
@@ -13,13 +13,9 @@ class GPTClient:
         self.client = OpenAI(api_key=api_key)
 
     def call_gpt(self, user_query, demand_zones_combined):
-        # Log the type before serialization
-        logging.debug("Type before calling serialize_demand_zones: %s", type(demand_zones_combined))
-        logging.debug("Original demand_zones_combined: %s", demand_zones_combined)
         
         try:
             demand_zones_combined_json = self.serialize_demand_zones(demand_zones_combined)
-            logging.debug("Serialized zones JSON: %s", demand_zones_combined_json)
         except Exception as e:
             logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
@@ -33,7 +29,7 @@ class GPTClient:
                     "1. Only consider zones where 'zoneType' is 'demand'. If no such zones exist, do not provide a recommendation.\n"
                     "2. If multiple 1-day demand zones have similar prices, combine them into one zone.\n"
                     "4. You will first look at 1d as interval and if not found then 1wk as interval for finding entry in zonetype as demand\\n"
-                    "5. Recommend the target as nearest lowest point of zoneType as supply from the current market price\n"
+                    "5. Recommend the target as proximal of zoneType SUPPLY strictly\n"
                     "5. Calculate the entry point as 2% above the highest point of the combined zone and the stop-loss as 2% below the lowest point.\n"
                     "6. Respond in plain, friendly English with a greeting and a clear final recommendation. "
                     "   Do not include technical details, calculations, or jargon.\n"
@@ -247,7 +243,34 @@ class GPTClient:
                     
                 result["1d"].append(daily_zone)
     
-        if not result["1d"] and wk_demand_zones and isinstance(wk_demand_zones, list):
+        self.addWeeklyDzIfDailyAreAbsent(current_market_price, wk_demand_zones, filtered_monthly, result)
+
+        return result
+
+    def addWeeklyDzIfDailyAreAbsent(
+        self,
+        current_market_price: float,
+        wk_demand_zones: List[Dict[str, Any]],
+        filtered_monthly: List[Dict[str, Any]],
+        result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Adds weekly demand zones to the result if daily demand zones are absent.
+        After adding, retains only the nearest supply zone.
+
+        Parameters:
+        - current_market_price (float): The current market price.
+        - wk_demand_zones (list): List of weekly demand zones.
+        - filtered_monthly (list): List of filtered monthly zones.
+        - result (dict): Existing result dictionary to be updated.
+
+        Returns:
+        - dict: Updated result dictionary.
+        """
+        # Check if '1d' key exists and is a non-empty list
+        daily_zones_present = bool(result.get("1d"))
+
+        if not daily_zones_present and wk_demand_zones and isinstance(wk_demand_zones, list):
             for monthly_zone in filtered_monthly:
                 if not isinstance(monthly_zone, dict):
                     continue
@@ -286,7 +309,7 @@ class GPTClient:
                         continue
                     
                     # Check if weekly zone's first date falls within allowed monthly months
-                    if wk_dates is not None and len(wk_dates) > 0 and first_month_year and second_month_year:
+                    if wk_dates and len(wk_dates) > 0 and first_month_year and second_month_year:
                         wk_month_year = (wk_dates[0].month, wk_dates[0].year)
                         # Allow weekly if its month/year matches the first or second month of the monthly zone
                         if wk_month_year != first_month_year and wk_month_year != second_month_year:
@@ -296,7 +319,7 @@ class GPTClient:
                         continue
                     
                     try:
-                        in_range = (int(wk_prox) <= int(mo_proximal)) and (int(wk_dist) >= int(mo_distal))
+                        in_range = (float(wk_prox) <= float(mo_proximal)) and (float(wk_dist) >= float(mo_distal))
                     except (TypeError, ValueError):
                         continue
                     
@@ -306,6 +329,10 @@ class GPTClient:
                     monthly_first_date = monthly_candles[0].get("date")
                     wk_first_date = wk_candles[0].get("date")  # Use first candle of weekly zone
                     monthly_last_date = monthly_candles[-1].get("date")
+
+                    # Ensure all dates are datetime objects
+                    if not all(isinstance(d, datetime) for d in [monthly_first_date, wk_first_date, monthly_last_date]):
+                        continue
 
                     # Lower bound: weekly first date must be on/after monthly first date.
                     # Upper bound: weekly first date must be before the last monthly candle date.
@@ -349,6 +376,61 @@ class GPTClient:
                         except (TypeError, ValueError):
                             continue
                         
-                    result["1d"].append(wk_zone)
+                    # Initialize '1d' key as a list if it doesn't exist
+                    result.setdefault("1d", []).append(wk_zone)
+
+        # After processing all zones, retain only the nearest supply zone
+        result = self.retain_nearest_supply_zone(result, current_market_price)
+
+        return result
+
+
+    def retain_nearest_supply_zone(self, result: Dict[str, Any], current_market_price: float) -> Dict[str, Any]:
+        """
+        Retains only the supply zone with the proximal price nearest to the current market price.
+        Removes all other supply zones from the result.
+
+        Parameters:
+        - result (dict): The dictionary containing demand and supply zones along with the current market price.
+        - current_market_price (float): The current market price.
+
+        Returns:
+        - dict: The modified result with only the nearest supply zone retained.
+        """
+        if current_market_price is None:
+            # If there's no current market price, return the result unchanged
+            return result
+
+        nearest_supply_zone = None
+        min_distance = float('inf')
+
+        # Iterate through all intervals and zones to find the nearest supply zone
+        for interval, zones in result.items():
+            if interval == 'current_market_price':
+                continue  # Skip the current market price entry
+
+            for zone in zones:
+                if zone.get('zoneType') == 'Supply':
+                    proximal = zone.get('proximal')
+                    if proximal is not None:
+                        try:
+                            distance = abs(float(proximal) - float(current_market_price))
+                        except (TypeError, ValueError):
+                            continue
+                        if distance < min_distance:
+                            min_distance = distance
+                            nearest_supply_zone = zone
+
+        if nearest_supply_zone:
+            # Iterate again to remove all supply zones except the nearest one
+            for interval, zones in result.items():
+                if interval == 'current_market_price':
+                    continue  # Skip the current market price entry
+
+                # Use list comprehension to filter zones
+                result[interval] = [
+                    zone for zone in zones
+                    if zone.get('zoneType') != 'Supply' or zone == nearest_supply_zone
+                ]
 
         return result

@@ -87,11 +87,9 @@ def index():
         if request.method == 'GET':
             gpt_answer = session.pop('gpt_answer', None)
             gpt_auto_answer = session.pop('gpt_auto_answer', None)
-            logging.debug(f"index(GET): Retrieved GPT answers: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
         else:
             gpt_answer = session.get('gpt_answer')
             gpt_auto_answer = session.get('gpt_auto_answer')
-            logging.debug(f"index(POST): Retrieved GPT answers: gpt_answer={gpt_answer}, gpt_auto_answer={gpt_auto_answer}")
     else:
         gpt_answer = None
         gpt_auto_answer = None
@@ -122,17 +120,13 @@ def index():
             ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
 
             final_zones_for_gpt = gpt_client.prepare_zones(monthly_all_zones, fresh_1d_zones, current_market_price, wk_demand_zones) if ENABLE_GPT and gpt_client else {}
-            if current_market_price is not None:
-                final_zones_for_gpt['current_market_price'] = current_market_price
 
             logging.debug(f"Final zones prepared for GPT: {final_zones_for_gpt}")
 
             if ENABLE_GPT and gpt_client and final_zones_for_gpt:
                 final_query = f"The current market price of the stock is {current_market_price}."
-                logging.debug(f"Final GPT Query: {final_query}")
 
                 final_gpt_answer = gpt_client.call_gpt(final_query, final_zones_for_gpt)
-                logging.debug(f"Automatic GPT Analysis Generated: {final_gpt_answer}")
 
                 session['gpt_auto_answer'] = final_gpt_answer
                 gpt_auto_answer = final_gpt_answer
