@@ -129,128 +129,224 @@ class GPTClient:
         
         logging.debug("Successfully serialized JSON: %s", serialized_json)
         return serialized_json
-    
-    def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones):
 
+    def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones):
         logging.debug(f"daily 1d fresh zones: {daily_all_zones}")
+
+        # Early exit if required inputs are missing or not in expected format
         if not monthly_fresh_zones or not daily_all_zones:
+            logging.warning("Empty monthly_fresh_zones or daily_all_zones provided.")
             return {}
-    
+
         if not isinstance(monthly_fresh_zones, list):
+            logging.warning("monthly_fresh_zones is not a list.")
             return {}
-    
+
         # Flatten nested structures in daily_all_zones if it's a dict
         if isinstance(daily_all_zones, dict):
             flattened = []
-            for value in daily_all_zones.values():
+            for key, value in daily_all_zones.items():
                 if isinstance(value, list):
                     flattened.extend(value)
                 elif isinstance(value, dict):
-                    for v in value.values():
-                        if isinstance(v, list):
-                            flattened.extend(v)
+                    for sub_key, sub_value in value.items():
+                        if isinstance(sub_value, list):
+                            flattened.extend(sub_value)
             daily_all_zones = flattened
+            logging.debug(f"Flattened daily_all_zones: {daily_all_zones}")
         elif not isinstance(daily_all_zones, list):
+            logging.warning("daily_all_zones is neither a list nor a dict.")
             return {}
-    
-        # Filter monthly zones based on current market price for demand zones
+
+        # Filter monthly zones based on 'zoneType' and 'distal' compared to current_market_price
         filtered_monthly = []
         for zone in monthly_fresh_zones:
             if not isinstance(zone, dict):
+                logging.debug(f"Skipping non-dict zone: {zone}")
                 continue
             if zone.get('zoneType') == "Demand":
+                distal = zone.get('distal')
                 try:
-                    if float(zone.get('distal', float('inf'))) > current_market_price:
+                    distal_value = float(distal)
+                    if distal_value > current_market_price:
+                        logging.debug(f"Skipping zone with distal {distal_value} > current_market_price {current_market_price}")
                         continue
                 except (TypeError, ValueError):
+                    logging.error(f"Invalid distal value: {distal} in zone: {zone}")
                     continue
             filtered_monthly.append(zone)
-    
+        logging.debug(f"Filtered monthly zones: {filtered_monthly}")
+
         result = {
             "1mo": filtered_monthly,
             "1d": []
         }
-    
-        # Process daily zones with filtering logic
+
+        # Helper function to extract a single date from various formats
+        def extract_single_date(date_obj, label):
+            if isinstance(date_obj, pd.DatetimeIndex):
+                logging.debug(f"{label} is a DatetimeIndex, extracting first element.")
+                return date_obj[0] if len(date_obj) > 0 else None
+            elif isinstance(date_obj, list):
+                logging.debug(f"{label} is a list, extracting first element.")
+                return date_obj[0] if len(date_obj) > 0 else None
+            elif isinstance(date_obj, pd.Timestamp):
+                return date_obj
+            else:
+                logging.debug(f"{label} has an unexpected type: {type(date_obj)}")
+                return None
+
+        # Iterate through each filtered monthly zone
         for monthly_zone in filtered_monthly:
             if not isinstance(monthly_zone, dict):
+                logging.debug(f"Skipping non-dict monthly_zone: {monthly_zone}")
                 continue
             
             mo_proximal = monthly_zone.get('proximal')
             mo_distal = monthly_zone.get('distal')
-            monthly_dates = monthly_zone.get("dates")
             monthly_candles = monthly_zone.get("candles", [])
-    
+
             # Ensure monthly zone has at least two candles for reference
             if not monthly_candles or len(monthly_candles) < 2:
+                logging.debug(f"Monthly zone lacks sufficient candles: {monthly_zone}")
                 continue
             
-            # Get month/year for the first two monthly candles
+            # Extract month/year for the first two monthly candles
             first_month_year = None
             second_month_year = None
-            if monthly_candles[0].get("date"):
-                first_month_year = (monthly_candles[0]["date"].month, monthly_candles[0]["date"].year)
-            if monthly_candles[1].get("date"):
-                second_month_year = (monthly_candles[1]["date"].month, monthly_candles[1]["date"].year)
-    
+            first_candle_date = monthly_candles[0].get("date")
+            second_candle_date = monthly_candles[1].get("date")
+
+            if first_candle_date:
+                first_month_year = (first_candle_date.month, first_candle_date.year)
+                logging.debug(f"First candle month/year: {first_month_year}")
+            if second_candle_date:
+                second_month_year = (second_candle_date.month, second_candle_date.year)
+                logging.debug(f"Second candle month/year: {second_month_year}")
+
             if mo_proximal is None or mo_distal is None:
+                logging.debug(f"Monthly zone missing proximal or distal: {monthly_zone}")
                 continue
             
+            # Iterate through each daily zone
             for daily_zone in daily_all_zones:
                 if not isinstance(daily_zone, dict):
+                    logging.debug(f"Skipping non-dict daily_zone: {daily_zone}")
                     continue
                 
                 daily_prox = daily_zone.get('proximal')
                 daily_dist = daily_zone.get('distal')
                 daily_dates = daily_zone.get("dates")
                 daily_candles = daily_zone.get("candles", [])
-    
+
                 # Ensure daily zone has at least two candles for comparison
                 if not daily_candles or len(daily_candles) < 2:
+                    logging.debug(f"Daily zone lacks sufficient candles: {daily_zone}")
                     continue
                 
-                # Check if daily zone's first date falls within allowed monthly months
+                # Extract single dates using the helper function
+                daily_first_date = extract_single_date(daily_candles[0].get("date"), "daily_first_date")
+                monthly_first_date = extract_single_date(monthly_candles[0].get("date"), "monthly_first_date")
+                monthly_last_date = extract_single_date(monthly_candles[-1].get("date"), "monthly_last_date")
+
+                # Verify that all necessary dates were successfully extracted
+                if not all([daily_first_date, monthly_first_date, monthly_last_date]):
+                    logging.error("Failed to extract one or more required dates.")
+                    continue
+                
+                # Log extracted dates and their types for debugging
+                logging.debug(
+                    f"Extracted Dates - Monthly First: {monthly_first_date} (type: {type(monthly_first_date)}), "
+                    f"Monthly Last: {monthly_last_date} (type: {type(monthly_last_date)}), "
+                    f"Daily First: {daily_first_date} (type: {type(daily_first_date)})"
+                )
+
+                # Check if the daily zone's first date falls within the allowed monthly months
+                # Avoid ambiguous boolean check on daily_dates (DatetimeIndex) by checking None & length
                 if daily_dates is not None and len(daily_dates) > 0 and first_month_year and second_month_year:
-                    daily_month_year = (daily_dates[0].month, daily_dates[0].year)
-                    # Allow daily if its month/year matches the first or second month of the monthly zone
-                    if daily_month_year != first_month_year and daily_month_year != second_month_year:
-                        continue
-                    
+                    daily_dates_single = extract_single_date(daily_dates, "daily_dates")
+                    if daily_dates_single:
+                        daily_month_year = (daily_dates_single.month, daily_dates_single.year)
+                        if daily_month_year not in [first_month_year, second_month_year]:
+                            logging.debug(
+                                f"Daily zone month/year {daily_month_year} does not match "
+                                f"first or second monthly month/year {first_month_year}, {second_month_year}"
+                            )
+                            continue
+                        
+                # Verify proximal and distal values are present
                 if daily_prox is None or daily_dist is None:
+                    logging.debug(f"Daily zone missing proximal or distal: {daily_zone}")
                     continue
                 
+                # Compare proximal and distal values as floats
                 try:
-                    in_range = (int(daily_prox) <= int(mo_proximal)) and (int(daily_dist) >= int(mo_distal))
-                except (TypeError, ValueError):
+                    mo_proximal_float = float(mo_proximal)
+                    mo_distal_float = float(mo_distal)
+                    daily_prox_float = float(daily_prox)
+                    daily_dist_float = float(daily_dist)
+                    in_range = (
+                        daily_prox_float <= mo_proximal_float and
+                        daily_dist_float >= mo_distal_float
+                    )
+                    logging.debug(f"Proximal and distal in range: {in_range}")
+                except (TypeError, ValueError) as e:
+                    logging.error(f"Error converting proximal/distal to float: {e}")
                     continue
                 
                 if not in_range:
+                    logging.debug("Daily zone proximal/distal out of range.")
                     continue
                 
-                monthly_first_date = monthly_candles[0].get("date")
-                daily_first_date = daily_candles[0].get("date")  # Use first candle of daily zone
-                monthly_last_date = monthly_candles[-1].get("date")
-    
-                # Lower bound: daily first date must be on/after monthly first date.
-                # Upper bound: daily first date must be before the last monthly candle date.
-                if not (monthly_first_date <= daily_first_date < monthly_last_date):
-                    continue
-                
-                if daily_zone.get("zoneType") == "Demand":
-                    try:
-                        if float(daily_dist) > current_market_price:
-                            continue
-                    except (TypeError, ValueError):
+                # Compare dates to ensure daily_first_date is within the monthly date range
+                try:
+                    # Ensure all dates are pd.Timestamp objects
+                    if not (
+                        isinstance(monthly_first_date, pd.Timestamp) and
+                        isinstance(daily_first_date, pd.Timestamp) and
+                        isinstance(monthly_last_date, pd.Timestamp)
+                    ):
+                        logging.error("One or more date variables are not pd.Timestamp objects.")
                         continue
                     
+                    # Perform the comparison: monthly_first_date <= daily_first_date < monthly_last_date
+                    if not (monthly_first_date <= daily_first_date < monthly_last_date):
+                        logging.debug(
+                            f"Daily first date {daily_first_date} not within monthly range "
+                            f"{monthly_first_date} - {monthly_last_date}"
+                        )
+                        continue
+                except Exception as e:
+                    logging.error(f"Error comparing dates: {e}")
+                    continue
+                
+                # Additional filter for Demand zones based on current_market_price
+                if daily_zone.get("zoneType") == "Demand":
+                    try:
+                        daily_dist_value = float(daily_dist)
+                        if daily_dist_value > current_market_price:
+                            logging.debug(
+                                f"Demand zone distal {daily_dist_value} > current_market_price {current_market_price}"
+                            )
+                            continue
+                    except (TypeError, ValueError):
+                        logging.error(f"Invalid distal value in daily zone: {daily_dist}")
+                        continue
+                    
+                # Append the valid daily zone to the result
+                logging.debug(f"Adding daily zone to result: {daily_zone}")
                 result["1d"].append(daily_zone)
-    
+
+        # Handle weekly demand zones if daily zones are absent
         self.addWeeklyDzIfDailyAreAbsent(current_market_price, wk_demand_zones, filtered_monthly, result)
-       
-        # After processing all zones, retain only the nearest supply zone
+
+        # Retain only the nearest supply zone after processing all zones
         result = self.retain_nearest_supply_zone(result, current_market_price)
+
+        # Build the final zones DTO (Data Transfer Object)
         dto = self.build_zones_dto(result, current_market_price)
 
+        logging.debug(f"Final DTO: {dto}")
         return dto
 
     def addWeeklyDzIfDailyAreAbsent(
@@ -283,7 +379,6 @@ class GPTClient:
                 
                 mo_proximal = monthly_zone.get('proximal')
                 mo_distal = monthly_zone.get('distal')
-                monthly_dates = monthly_zone.get("dates")
                 monthly_candles = monthly_zone.get("candles", [])
 
                 # Ensure monthly zone has at least two candles for reference
@@ -294,9 +389,15 @@ class GPTClient:
                 first_month_year = None
                 second_month_year = None
                 if monthly_candles[0].get("date"):
-                    first_month_year = (monthly_candles[0]["date"].month, monthly_candles[0]["date"].year)
+                    first_month_year = (
+                        monthly_candles[0]["date"].month,
+                        monthly_candles[0]["date"].year
+                    )
                 if monthly_candles[1].get("date"):
-                    second_month_year = (monthly_candles[1]["date"].month, monthly_candles[1]["date"].year)
+                    second_month_year = (
+                        monthly_candles[1]["date"].month,
+                        monthly_candles[1]["date"].year
+                    )
 
                 if mo_proximal is None or mo_distal is None:
                     continue
@@ -314,18 +415,35 @@ class GPTClient:
                     if not wk_candles or len(wk_candles) < 2:
                         continue
                     
-                    # Check if weekly zone's first date falls within allowed monthly months
-                    if wk_dates and len(wk_dates) > 0 and first_month_year and second_month_year:
-                        wk_month_year = (wk_dates[0].month, wk_dates[0].year)
-                        # Allow weekly if its month/year matches the first or second month of the monthly zone
-                        if wk_month_year != first_month_year and wk_month_year != second_month_year:
-                            continue
+                    # Avoid ambiguous boolean check on wk_dates (DatetimeIndex)
+                    if wk_dates is not None and len(wk_dates) > 0 and first_month_year and second_month_year:
+                        # Extract the first date in wk_dates
+                        if isinstance(wk_dates, pd.DatetimeIndex) and len(wk_dates) > 0:
+                            wk_first_date_in_index = wk_dates[0]
+                            wk_month_year = (wk_first_date_in_index.month, wk_first_date_in_index.year)
+                        elif isinstance(wk_dates, list) and len(wk_dates) > 0:
+                            wk_first_date_in_index = wk_dates[0]
+                            wk_month_year = (wk_first_date_in_index.month, wk_first_date_in_index.year)
+                        else:
+                            # If wk_dates is a single pd.Timestamp or something else
+                            if isinstance(wk_dates, pd.Timestamp):
+                                wk_month_year = (wk_dates.month, wk_dates.year)
+                            else:
+                                # Can't parse, skip
+                                continue
                         
+                        # Allow weekly if its month/year matches the first or second month of the monthly zone
+                        if wk_month_year not in [first_month_year, second_month_year]:
+                            continue
+
                     if wk_prox is None or wk_dist is None:
                         continue
                     
                     try:
-                        in_range = (float(wk_prox) <= float(mo_proximal)) and (float(wk_dist) >= float(mo_distal))
+                        in_range = (
+                            float(wk_prox) <= float(mo_proximal) and
+                            float(wk_dist) >= float(mo_distal)
+                        )
                     except (TypeError, ValueError):
                         continue
                     
@@ -336,8 +454,18 @@ class GPTClient:
                     wk_first_date = wk_candles[0].get("date")  # Use first candle of weekly zone
                     monthly_last_date = monthly_candles[-1].get("date")
 
+                    # If any is a DatetimeIndex, take [0] or [-1]
+                    if isinstance(monthly_first_date, pd.DatetimeIndex) and len(monthly_first_date) > 0:
+                        monthly_first_date = monthly_first_date[0]
+
+                    if isinstance(monthly_last_date, pd.DatetimeIndex) and len(monthly_last_date) > 0:
+                        monthly_last_date = monthly_last_date[-1]
+
+                    if isinstance(wk_first_date, pd.DatetimeIndex) and len(wk_first_date) > 0:
+                        wk_first_date = wk_first_date[0]
+
                     # Ensure all dates are datetime objects
-                    if not all(isinstance(d, datetime) for d in [monthly_first_date, wk_first_date, monthly_last_date]):
+                    if not all(isinstance(d, (datetime, pd.Timestamp)) for d in [monthly_first_date, wk_first_date, monthly_last_date]):
                         continue
 
                     # Lower bound: weekly first date must be on/after monthly first date.
@@ -346,9 +474,8 @@ class GPTClient:
                         continue
                     
                     # Additional new checks:
-
                     # a) Formation Within Last 2 Months
-                    two_months_ago = datetime.now() - timedelta(days=60)  # Roughly 2 months ago
+                    two_months_ago = datetime.now() - timedelta(days=60)  # Roughly 2 months
                     if wk_first_date < two_months_ago:
                         continue
                     
@@ -362,15 +489,25 @@ class GPTClient:
                     # c) At least one weekly candle's low is less than the monthly zone's proximal
                     candle_low_below_proximal = False
                     for candle in wk_candles:
-                        # Assuming each candle dict has a "low" field indicating its low price.
-                        candle_low = candle.get("low")
-                        if candle_low is not None and mo_proximal is not None:
-                            try:
-                                if float(candle_low) < float(mo_proximal):
-                                    candle_low_below_proximal = True
-                                    break
-                            except (TypeError, ValueError):
-                                continue
+                        # For safety, we assume your 'candles' structure might store OHLC in a sub-dict or keys might differ
+                        # Adjust as needed for your exact data structure
+                        # Example: candle.get("ohlc", {}).get("Low", <some_default>)
+                        # In your snippet, it might be candle['date'], candle['low'], etc.
+                        candle_low = None
+                        if "ohlc" in candle:
+                            candle_low = candle["ohlc"].get("Low")
+                        elif "low" in candle:
+                            candle_low = candle["low"]
+                        # If we still don't have a low, skip
+                        if candle_low is None or mo_proximal is None:
+                            continue
+                        try:
+                            if float(candle_low) < float(mo_proximal):
+                                candle_low_below_proximal = True
+                                break
+                        except (TypeError, ValueError):
+                            continue
+
                     if not candle_low_below_proximal:
                         continue
                     
@@ -382,12 +519,10 @@ class GPTClient:
                         except (TypeError, ValueError):
                             continue
                         
-                    # Initialize '1d' key as a list if it doesn't exist
+                    # Initialize '1d' key as a list if it doesn't exist and append the weekly zone
                     result.setdefault("1d", []).append(wk_zone)
 
-
         return result
-
 
     def retain_nearest_supply_zone(self, result: Dict[str, Any], current_market_price: float) -> Dict[str, Any]:
         """
@@ -395,7 +530,7 @@ class GPTClient:
         Removes all other supply zones from the result.
 
         Parameters:
-        - result (dict): The dictionary containing demand and supply zones along with the current market price.
+        - result (dict): The dictionary containing demand and supply zones.
         - current_market_price (float): The current market price.
 
         Returns:
@@ -410,8 +545,12 @@ class GPTClient:
 
         # Iterate through all intervals and zones to find the nearest supply zone
         for interval, zones in result.items():
+            # Skip current_market_price if stored in result
             if interval == 'current_market_price':
-                continue  # Skip the current market price entry
+                continue
+
+            if not isinstance(zones, list):
+                continue
 
             for zone in zones:
                 if zone.get('zoneType') == 'Supply':
@@ -429,16 +568,17 @@ class GPTClient:
             # Iterate again to remove all supply zones except the nearest one
             for interval, zones in result.items():
                 if interval == 'current_market_price':
-                    continue  # Skip the current market price entry
+                    continue
+                if not isinstance(zones, list):
+                    continue
 
                 # Use list comprehension to filter zones
                 result[interval] = [
-                    zone for zone in zones
-                    if zone.get('zoneType') != 'Supply' or zone == nearest_supply_zone
+                    z for z in zones
+                    if z.get('zoneType') != 'Supply' or z == nearest_supply_zone
                 ]
 
         return result
-    
 
     def build_zones_dto(self, zones_result: dict, current_market_price: float) -> dict:
         """
@@ -451,11 +591,9 @@ class GPTClient:
         Returns:
             dict: A DTO with:
                   - "3mo_demand_zone": "proximal-distal" string (e.g., "130.00-120.00"),
-                                         or None if not found.
                   - "1mo_demand_zone": "proximal-distal" string (e.g., "159.94-137.00"),
-                                         or None if not found.
-                  - "entries": List of dictionaries with "entry" and "stoploss".
-                  - "target": Target price (float), or None if not found.
+                  - "entries": List of dictionaries with "entry" and "stoploss",
+                  - "target": Target price (float).
         """
 
         # DTO structure to be returned
@@ -466,7 +604,7 @@ class GPTClient:
             "target": None
         }
 
-        # -- 1) Find the 3mo Demand Zone from result["1mo"]
+        # 1) Find the 3mo Demand Zone from result["1mo"]
         three_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
         if three_mo_zone:
             proximal = three_mo_zone.get("proximal")
@@ -482,7 +620,7 @@ class GPTClient:
             else:
                 logging.warning("3mo Demand Zone found but proximal or distal is missing.")
 
-        # -- 2) Find the 1mo Demand Zone from result["1mo"]
+        # 2) Find the 1mo Demand Zone from result["1mo"]
         one_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
         if one_mo_zone:
             proximal = one_mo_zone.get("proximal")
@@ -498,7 +636,7 @@ class GPTClient:
             else:
                 logging.warning("1mo Demand Zone found but proximal or distal is missing.")
 
-        # -- 3) Collect entries from the 1d Demand Zones
+        # 3) Collect entries from the 1d Demand Zones
         daily_zones = zones_result.get("1d", [])
         for dz in daily_zones:
             if dz.get("zoneType") == "Demand":
@@ -518,7 +656,7 @@ class GPTClient:
                 else:
                     logging.warning("Daily Demand Zone found but entry_price or stop_loss is missing.")
 
-        # -- 4) Determine the target from the nearest Supply Zone
+        # 4) Determine the target from the nearest Supply Zone
         supply_candidates = [
             z for z in zones_result.get("1mo", [])
             if z.get("zoneType") == "Supply" and z.get("interval") in ("1mo", "3mo")
@@ -552,7 +690,7 @@ class GPTClient:
         Parameters:
             zones (list): List of zone dictionaries.
             zone_type (str): The type of zone to search for ('Demand' or 'Supply').
-            interval (str): The interval of the zone ('1mo' or '3mo').
+            interval (str): The interval of the zone ('1mo', '3mo', etc.).
 
         Returns:
             dict: The matching zone dictionary or an empty dict if not found.
@@ -561,3 +699,9 @@ class GPTClient:
             if z.get("zoneType") == zone_type and z.get("interval") == interval:
                 return z
         return {}
+
+
+# Usage Example (pseudo-code):
+# processor = ZoneProcessor()
+# dto = processor.prepare_zones(monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones)
+# print(dto)

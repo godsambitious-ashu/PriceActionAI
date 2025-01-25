@@ -5,6 +5,7 @@ from stock_data.demand_zone_utils import DemandZoneUtils
 from stock_data.candlestick_utils import CandleStickUtils
 from stock_data.plotter import Plotter
 from stock_data.data_fetcher import DataFetcher
+from stock_data.stocks_config import special_stocks_map
 import plotly.io as pio
 
 class DemandZoneManager:
@@ -319,3 +320,21 @@ class DemandZoneManager:
             fresh_demand_zones_1d, 
             wk_demand_zones
         )
+    
+
+    def get_stock_codes_to_process(self, original_stock_code):
+        """
+        Checks if the given stock_code belongs to a specific set of stocks.
+        If it does, returns the mapped stock codes.
+        Otherwise, returns an empty list.
+
+        :param original_stock_code: The original stock code to check.
+        :return: List of stock codes to process.
+        """
+        original_upper = original_stock_code.upper()
+        if original_upper in special_stocks_map:
+            result = special_stocks_map[original_upper]
+        else:
+            result = []
+    
+        return result
