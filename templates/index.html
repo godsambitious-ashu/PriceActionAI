@@ -140,7 +140,6 @@
             <option value="1y" selected>1 Year</option>
             <option value="2y">2 Years</option>
             <option value="5y">5 Years</option>
-            <option value="10y">10 Years</option>
             <option value="ytd">Year to Date</option>
             <option value="max">Max</option>
           </select>
@@ -180,62 +179,130 @@
             {% endif %}
           </div>
 
-          {% if charts %}
-            <div class="charts-section mt-4">
-              <h5 class="text-center">Candlestick Charts</h5>
+          <!-- New Button Panel for Stock and Index -->
+          <div class="button-panel mb-4">
+            <button class="btn btn-success active" onclick="showData('stock')">Stock</button>
+            {% if index_charts %}
+              <button class="btn btn-success mx-2" onclick="showData('index')">Index</button>
+            {% else %}
+              <button class="btn btn-success mx-2" disabled>Index</button>
+            {% endif %}
+          </div>
 
-              <!-- Horizontal Button Panel -->
-              <div class="button-panel">
-                <button class="btn btn-primary mx-2 active" onclick="showChart('1d')">1D</button>
-                <button class="btn btn-primary mx-2" onclick="showChart('1wk')">1W</button>
-                <button class="btn btn-primary mx-2" onclick="showChart('1mo')">1M</button>
-                <button class="btn btn-primary mx-2" onclick="showChart('3mo')">3M</button>
-              </div>
+          <!-- Stock Charts Section -->
+          <div id="stock_section">
+            {% if charts %}
+              <div class="charts-section mt-4">
+                <h5 class="text-center">Candlestick Charts - Stock</h5>
 
-              <!-- Charts Loop -->
-              {% for interval, chart_data in charts.items() %}
-                {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
-                  <div class="chart-container mb-4" id="chart_container_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
-                {% else %}
-                  <!-- If there are other intervals, decide how to handle them -->
-                  <div class="chart-container mb-4" id="chart_container_{{ interval }}" style="display:none;">
-                {% endif %}
-                  <div class="d-flex justify-content-between align-items-center">
-                    <h6>{{ interval|upper }} Interval</h6>
-                    <button
-                      class="btn btn-secondary btn-sm"
-                      onclick="toggleFullscreen('chart_container_{{ interval }}')"
-                    >
-                      Fullscreen
-                    </button>
-                  </div>
-                  <div class="toggle-section mb-2">
-                    <label for="fresh_toggle_{{ interval }}">
-                      Show only fresh demand zones:
-                    </label>
-                    <label class="toggle-switch">
-                      <input
-                        type="checkbox"
-                        id="fresh_toggle_{{ interval }}"
-                        onchange="toggleFreshZones('{{ interval }}')"
-                      />
-                      <span class="slider"></span>
-                    </label>
-                  </div>
-                  <div id="chart_all_zones_{{ interval }}">
-                    {{ chart_data.all_zones | safe }}
-                  </div>
-                  <div id="chart_fresh_zones_{{ interval }}" style="display:none;">
-                    {{ chart_data.fresh_zones | safe }}
-                  </div>
+                <!-- Horizontal Button Panel for Stock Intervals -->
+                <div class="button-panel">
+                  <button class="btn btn-primary mx-2 active" onclick="showChart('stock', '1d')">1D</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '1wk')">1W</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '1mo')">1M</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '3mo')">3M</button>
                 </div>
-              {% endfor %}
+
+                <!-- Stock Charts Loop -->
+                {% for interval, chart_data in charts.items() %}
+                  {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
+                    <div class="chart-container mb-4" id="chart_container_stock_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
+                  {% else %}
+                    <!-- If there are other intervals, decide how to handle them -->
+                    <div class="chart-container mb-4" id="chart_container_stock_{{ interval }}" style="display:none;">
+                  {% endif %}
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h6>{{ interval|upper }} Interval</h6>
+                      <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="toggleFullscreen('chart_container_stock_{{ interval }}')"
+                      >
+                        Fullscreen
+                      </button>
+                    </div>
+                    <div class="toggle-section mb-2">
+                      <label for="fresh_toggle_stock_{{ interval }}">
+                        Show only fresh demand zones:
+                      </label>
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          id="fresh_toggle_stock_{{ interval }}"
+                          onchange="toggleFreshZones('stock', '{{ interval }}')"
+                        />
+                        <span class="slider"></span>
+                      </label>
+                    </div>
+                    <div id="chart_all_zones_stock_{{ interval }}">
+                      {{ chart_data.all_zones | safe }}
+                    </div>
+                    <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
+                      {{ chart_data.fresh_zones | safe }}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Index Charts Section (only if index_charts exist) -->
+          {% if index_charts %}
+            <div id="index_section" style="display:none;">
+              <div class="charts-section mt-4">
+                <h5 class="text-center">Candlestick Charts - Index</h5>
+
+                <!-- Horizontal Button Panel for Index Intervals -->
+                <div class="button-panel">
+                  <button class="btn btn-primary mx-2 active" onclick="showChart('index', '1d')">1D</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('index', '1wk')">1W</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('index', '1mo')">1M</button>
+                  <button class="btn btn-primary mx-2" onclick="showChart('index', '3mo')">3M</button>
+                </div>
+
+                <!-- Index Charts Loop -->
+                {% for interval, chart_data in index_charts.items() %}
+                  {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
+                    <div class="chart-container mb-4" id="chart_container_index_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
+                  {% else %}
+                    <!-- If there are other intervals, decide how to handle them -->
+                    <div class="chart-container mb-4" id="chart_container_index_{{ interval }}" style="display:none;">
+                  {% endif %}
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h6>{{ interval|upper }} Interval</h6>
+                      <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="toggleFullscreen('chart_container_index_{{ interval }}')"
+                      >
+                        Fullscreen
+                      </button>
+                    </div>
+                    <div class="toggle-section mb-2">
+                      <label for="fresh_toggle_index_{{ interval }}">
+                        Show only fresh demand zones:
+                      </label>
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          id="fresh_toggle_index_{{ interval }}"
+                          onchange="toggleFreshZones('index', '{{ interval }}')"
+                        />
+                        <span class="slider"></span>
+                      </label>
+                    </div>
+                    <div id="chart_all_zones_index_{{ interval }}">
+                      {{ chart_data.all_zones | safe }}
+                    </div>
+                    <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
+                      {{ chart_data.fresh_zones | safe }}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
             </div>
           {% endif %}
         </div>
       </div>
-    </div>
-  {% endif %}
+    {% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -305,10 +372,10 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Toggle Fresh Zones
-  window.toggleFreshZones = function(interval) {
-    const allZonesDiv = document.getElementById(`chart_all_zones_${interval}`);
-    const freshZonesDiv = document.getElementById(`chart_fresh_zones_${interval}`);
-    const checkbox = document.getElementById(`fresh_toggle_${interval}`);
+  window.toggleFreshZones = function(dataType, interval) {
+    const allZonesDiv = document.getElementById(`chart_all_zones_${dataType}_${interval}`);
+    const freshZonesDiv = document.getElementById(`chart_fresh_zones_${dataType}_${interval}`);
+    const checkbox = document.getElementById(`fresh_toggle_${dataType}_${interval}`);
 
     if (checkbox.checked) {
       allZonesDiv.style.display = 'none';
@@ -319,14 +386,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // Show/Hide Charts Based on Selected Timeframe
-  window.showChart = function(selectedInterval) {
-    // Define the intervals you have buttons for
+  // Show/Hide Data Type Sections
+  window.showData = function(dataType) {
+    const stockSection = document.getElementById('stock_section');
+    const indexSection = document.getElementById('index_section');
+    const stockButton = document.querySelector('.button-panel button[onclick="showData(\'stock\')"]');
+    const indexButton = document.querySelector('.button-panel button[onclick="showData(\'index\')"]');
+
+    if (dataType === 'stock') {
+      stockSection.style.display = 'block';
+      if (indexSection) indexSection.style.display = 'none';
+      stockButton.classList.add('active');
+      if (indexButton) indexButton.classList.remove('active');
+    } else if (dataType === 'index') {
+      stockSection.style.display = 'none';
+      if (indexSection) indexSection.style.display = 'block';
+      stockButton.classList.remove('active');
+      if (indexButton) indexButton.classList.add('active');
+    }
+  };
+
+  // Show/Hide Charts Based on Selected Timeframe within Data Type
+  window.showChart = function(dataType, selectedInterval) {
     const intervals = ['1d', '1wk', '1mo', '3mo'];
 
     intervals.forEach(function(interval) {
-      const container = document.getElementById(`chart_container_${interval}`);
-      const button = document.querySelector(`.button-panel button[onclick="showChart('${interval}')"]`);
+      const container = document.getElementById(`chart_container_${dataType}_${interval}`);
+      const button = document.querySelector(`.button-panel button[onclick="showChart('${dataType}', '${interval}')"]`);
       if (container) {
         if (interval === selectedInterval) {
           container.style.display = 'block';
@@ -339,8 +425,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // Initialize - Show the default chart and set active button
-  showChart('1d');
+  // Initialize - Show Stock section and default chart
+  showData('stock');
+  showChart('stock', '1d');
 });
 </script>
 {% endblock %}

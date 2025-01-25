@@ -8,7 +8,7 @@ import plotly.io as pio
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -106,25 +106,67 @@ def index():
                 logging.debug("New stock searched. Clearing previous conversation history.")
                 session['chat_history'] = []
 
+            # Process Main Stock
             dz_manager = DemandZoneManager(stock_code)
+            index_code = dz_manager.get_stock_codes_to_process(stock_code)
             (
-                charts,
-                demand_zones_info,
-                supply_zones_info,
-                all_demand_zones_fresh,
-                all_supply_zones_fresh,
-                monthly_all_zones,
-                daily_all_zones,
-                current_market_price,
-                fresh_1d_zones, wk_demand_zones
+                main_charts,
+                main_demand_zones_info,
+                main_supply_zones_info,
+                main_all_demand_zones_fresh,
+                main_all_supply_zones_fresh,
+                main_monthly_all_zones,
+                main_daily_all_zones,
+                main_current_market_price,
+                main_fresh_1d_zones, main_wk_demand_zones
             ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
 
-            final_zones_for_gpt = gpt_client.prepare_zones(monthly_all_zones, fresh_1d_zones, current_market_price, wk_demand_zones) if ENABLE_GPT and gpt_client else {}
+            # Initialize Index Data Variables
+            index_charts = None
+            index_demand_zones_info = None
+            index_supply_zones_info = None
+            index_all_demand_zones_fresh = None
+            index_all_supply_zones_fresh = None
+            index_monthly_all_zones = None
+            index_daily_all_zones = None
+            index_current_market_price = None
+            index_fresh_1d_zones = None
+            index_wk_demand_zones = None
+
+            # Process Index Stock if index_code exists
+            if index_code:
+                dz_manager_index = DemandZoneManager(index_code)
+                (
+                    index_charts,
+                    index_demand_zones_info,
+                    index_supply_zones_info,
+                    index_all_demand_zones_fresh,
+                    index_all_supply_zones_fresh,
+                    index_monthly_all_zones,
+                    index_daily_all_zones,
+                    index_current_market_price,
+                    index_fresh_1d_zones, index_wk_demand_zones
+                ) = dz_manager_index.process_all_intervals(HARDCODED_INTERVALS, period)
+                logging.debug(f"Processed index_code: {index_code}")
+            else:
+                logging.debug("No index_code found for the given stock_code.")
+
+            # Prepare Zones for GPT using Main Stock Data
+            if ENABLE_GPT and gpt_client:
+                final_zones_for_gpt = gpt_client.prepare_zones(
+                    main_monthly_all_zones,
+                    main_fresh_1d_zones,
+                    main_current_market_price,
+                    main_wk_demand_zones
+                )
+            else:
+                final_zones_for_gpt = {}
 
             logging.debug(f"Final zones prepared for GPT: {final_zones_for_gpt}")
 
+            # Generate GPT Auto Answer using Main Stock Data
             if ENABLE_GPT and gpt_client and final_zones_for_gpt:
-                final_query = f"The current market price of the stock is {current_market_price}."
+                final_query = f"The current market price of the stock is {main_current_market_price}."
 
                 final_gpt_answer = gpt_client.call_gpt(final_query, final_zones_for_gpt)
 
@@ -136,12 +178,18 @@ def index():
             else:
                 gpt_auto_answer = None
 
-            serialized_fresh = gpt_client.serialize_demand_zones(final_zones_for_gpt) if ENABLE_GPT and gpt_client else {}
+            # Serialize Fresh Zones for Session Storage
+            if ENABLE_GPT and gpt_client:
+                serialized_fresh = gpt_client.serialize_demand_zones(final_zones_for_gpt)
+            else:
+                serialized_fresh = {}
             session['demand_zones_fresh_dict'] = final_zones_for_gpt
             logging.debug(f"Serialized fresh zones stored in session: {final_zones_for_gpt}")
 
+            # Store Current Stock Code in Session
             session['current_stock_code'] = stock_code
 
+            # Update Chat History
             chat_history = session.get('chat_history', [])
             chat_session = {
                 'stock_code': stock_code,
@@ -154,17 +202,52 @@ def index():
 
             active_chat_id = len(chat_history) - 1
 
+            # Prepare Data to Pass to Frontend
+            frontend_data = {
+                'main_stock': {
+                    'charts': main_charts,
+                    'demand_zones_info': main_demand_zones_info,
+                    'supply_zones_info': main_supply_zones_info,
+                    'all_demand_zones_fresh': main_all_demand_zones_fresh,
+                    'all_supply_zones_fresh': main_all_supply_zones_fresh,
+                    'monthly_all_zones': main_monthly_all_zones,
+                    'daily_all_zones': main_daily_all_zones,
+                    'current_market_price': main_current_market_price,
+                    'fresh_1d_zones': main_fresh_1d_zones,
+                    'wk_demand_zones': main_wk_demand_zones
+                },
+                'index_stock': {
+                    'charts': index_charts,
+                    'demand_zones_info': index_demand_zones_info,
+                    'supply_zones_info': index_supply_zones_info,
+                    'all_demand_zones_fresh': index_all_demand_zones_fresh,
+                    'all_supply_zones_fresh': index_all_supply_zones_fresh,
+                    'monthly_all_zones': index_monthly_all_zones,
+                    'daily_all_zones': index_daily_all_zones,
+                    'current_market_price': index_current_market_price,
+                    'fresh_1d_zones': index_fresh_1d_zones,
+                    'wk_demand_zones': index_wk_demand_zones
+                }
+            }
+
             return render_template(
                 'index.html',
-                charts=charts,
-                demand_zones_info=demand_zones_info,
+                charts=frontend_data['main_stock']['charts'],
+                demand_zones_info=frontend_data['main_stock']['demand_zones_info'],
+                supply_zones_info=frontend_data['main_stock']['supply_zones_info'],
                 name=name,
                 email=email,
                 chat_history=session.get('chat_history', []),
                 gpt_answer=gpt_answer,
                 gpt_auto_answer=gpt_auto_answer,
                 enable_gpt=ENABLE_GPT,
-                active_chat_id=active_chat_id
+                active_chat_id=active_chat_id,
+                index_code=index_code,
+                index_charts=frontend_data['index_stock']['charts'],
+                index_demand_zones_info=frontend_data['index_stock']['demand_zones_info'],
+                index_supply_zones_info=frontend_data['index_stock']['supply_zones_info'],
+                index_current_market_price=frontend_data['index_stock']['current_market_price'],
+                # Add other index-related data as needed
             )
         except Exception as e:
             logging.error(f"Error processing request: {e}")
@@ -185,16 +268,29 @@ def index():
     chat_history = session.get('chat_history', [])
     active_chat_id = len(chat_history) - 1 if chat_history else 0
 
+    # Retrieve Frontend Data from Session if Needed
+    frontend_data = session.get('frontend_data', {})
+    main_stock = frontend_data.get('main_stock', {})
+    index_stock = frontend_data.get('index_stock', {})
+
     return render_template(
         'index.html',
-        charts=None,
+        charts=main_stock.get('charts'),
+        demand_zones_info=main_stock.get('demand_zones_info'),
+        supply_zones_info=main_stock.get('supply_zones_info'),
         name=name,
         email=email,
         chat_history=chat_history,
         gpt_answer=gpt_answer,
         gpt_auto_answer=gpt_auto_answer,
         enable_gpt=ENABLE_GPT,
-        active_chat_id=active_chat_id
+        active_chat_id=active_chat_id,
+        index_code=None,  # No index_code on GET
+        index_charts=index_stock.get('charts'),
+        index_demand_zones_info=index_stock.get('demand_zones_info'),
+        index_supply_zones_info=index_stock.get('supply_zones_info'),
+        index_current_market_price=index_stock.get('current_market_price'),
+        # Add other index-related data as needed
     )
 
 @app.route('/send_message', methods=['POST'])

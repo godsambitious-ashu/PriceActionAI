@@ -132,6 +132,9 @@ class GPTClient:
 
     def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones):
         logging.debug(f"daily 1d fresh zones: {daily_all_zones}")
+        logging.debug(f"monthly fresh zones: {daily_all_zones}")
+        logging.debug(f"wk demand zones: {daily_all_zones}")
+
 
         # Early exit if required inputs are missing or not in expected format
         if not monthly_fresh_zones or not daily_all_zones:
@@ -350,179 +353,200 @@ class GPTClient:
         return dto
 
     def addWeeklyDzIfDailyAreAbsent(
-        self,
-        current_market_price: float,
-        wk_demand_zones: List[Dict[str, Any]],
-        filtered_monthly: List[Dict[str, Any]],
-        result: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Adds weekly demand zones to the result if daily demand zones are absent.
-        After adding, retains only the nearest supply zone.
+            self,
+            current_market_price: float,
+            wk_demand_zones: List[Dict[str, Any]],
+            filtered_monthly: List[Dict[str, Any]],
+            result: Dict[str, Any]
+        ) -> Dict[str, Any]:
+            """
+            Adds weekly demand zones to the result if daily demand zones are absent.
+            After adding, retains only the nearest supply zone.
 
-        Parameters:
-        - current_market_price (float): The current market price.
-        - wk_demand_zones (list): List of weekly demand zones.
-        - filtered_monthly (list): List of filtered monthly zones.
-        - result (dict): Existing result dictionary to be updated.
+            Parameters:
+            - current_market_price (float): The current market price.
+            - wk_demand_zones (list): List of weekly demand zones.
+            - filtered_monthly (list): List of filtered monthly zones.
+            - result (dict): Existing result dictionary to be updated.
 
-        Returns:
-        - dict: Updated result dictionary.
-        """
-        # Check if '1d' key exists and is a non-empty list
-        daily_zones_present = bool(result.get("1d"))
+            Returns:
+            - dict: Updated result dictionary.
+            """
+            # Check if '1d' key exists and is a non-empty list
+            daily_zones_present = bool(result.get("1d"))
 
-        if not daily_zones_present and wk_demand_zones and isinstance(wk_demand_zones, list):
-            for monthly_zone in filtered_monthly:
-                if not isinstance(monthly_zone, dict):
-                    continue
-                
-                mo_proximal = monthly_zone.get('proximal')
-                mo_distal = monthly_zone.get('distal')
-                monthly_candles = monthly_zone.get("candles", [])
-
-                # Ensure monthly zone has at least two candles for reference
-                if not monthly_candles or len(monthly_candles) < 2:
-                    continue
-                
-                # Get month/year for the first two monthly candles
-                first_month_year = None
-                second_month_year = None
-                if monthly_candles[0].get("date"):
-                    first_month_year = (
-                        monthly_candles[0]["date"].month,
-                        monthly_candles[0]["date"].year
-                    )
-                if monthly_candles[1].get("date"):
-                    second_month_year = (
-                        monthly_candles[1]["date"].month,
-                        monthly_candles[1]["date"].year
-                    )
-
-                if mo_proximal is None or mo_distal is None:
-                    continue
-                
-                for wk_zone in wk_demand_zones:
-                    if not isinstance(wk_zone, dict):
+            if not daily_zones_present and wk_demand_zones and isinstance(wk_demand_zones, list):
+                for monthly_zone in filtered_monthly:
+                    if not isinstance(monthly_zone, dict):
+                        logging.warning(f"Skipped non-dict monthly zone: {monthly_zone}")
                         continue
                     
-                    wk_prox = wk_zone.get('proximal')
-                    wk_dist = wk_zone.get('distal')
-                    wk_dates = wk_zone.get("dates")
-                    wk_candles = wk_zone.get("candles", [])
+                    mo_proximal = monthly_zone.get('proximal')
+                    mo_distal = monthly_zone.get('distal')
+                    monthly_candles = monthly_zone.get("candles", [])
 
-                    # Ensure weekly zone has at least two candles for comparison
-                    if not wk_candles or len(wk_candles) < 2:
+                    # Ensure monthly zone has at least two candles for reference
+                    if not monthly_candles or len(monthly_candles) < 2:
+                        logging.warning(f"Monthly zone lacks sufficient candles: {monthly_zone}")
                         continue
-                    
-                    # Avoid ambiguous boolean check on wk_dates (DatetimeIndex)
-                    if wk_dates is not None and len(wk_dates) > 0 and first_month_year and second_month_year:
-                        # Extract the first date in wk_dates
-                        if isinstance(wk_dates, pd.DatetimeIndex) and len(wk_dates) > 0:
-                            wk_first_date_in_index = wk_dates[0]
-                            wk_month_year = (wk_first_date_in_index.month, wk_first_date_in_index.year)
-                        elif isinstance(wk_dates, list) and len(wk_dates) > 0:
-                            wk_first_date_in_index = wk_dates[0]
-                            wk_month_year = (wk_first_date_in_index.month, wk_first_date_in_index.year)
-                        else:
-                            # If wk_dates is a single pd.Timestamp or something else
-                            if isinstance(wk_dates, pd.Timestamp):
-                                wk_month_year = (wk_dates.month, wk_dates.year)
-                            else:
-                                # Can't parse, skip
-                                continue
-                        
-                        # Allow weekly if its month/year matches the first or second month of the monthly zone
-                        if wk_month_year not in [first_month_year, second_month_year]:
-                            continue
 
-                    if wk_prox is None or wk_dist is None:
-                        continue
-                    
-                    try:
-                        in_range = (
-                            float(wk_prox) <= float(mo_proximal) and
-                            float(wk_dist) >= float(mo_distal)
+                    # Get month/year for the first two monthly candles
+                    first_month_year = None
+                    second_month_year = None
+                    if monthly_candles[0].get("date"):
+                        first_month_year = (
+                            monthly_candles[0]["date"].month,
+                            monthly_candles[0]["date"].year
                         )
-                    except (TypeError, ValueError):
-                        continue
-                    
-                    if not in_range:
-                        continue
-                    
-                    monthly_first_date = monthly_candles[0].get("date")
-                    wk_first_date = wk_candles[0].get("date")  # Use first candle of weekly zone
-                    monthly_last_date = monthly_candles[-1].get("date")
+                    if monthly_candles[1].get("date"):
+                        second_month_year = (
+                            monthly_candles[1]["date"].month,
+                            monthly_candles[1]["date"].year
+                        )
 
-                    # If any is a DatetimeIndex, take [0] or [-1]
-                    if isinstance(monthly_first_date, pd.DatetimeIndex) and len(monthly_first_date) > 0:
-                        monthly_first_date = monthly_first_date[0]
-
-                    if isinstance(monthly_last_date, pd.DatetimeIndex) and len(monthly_last_date) > 0:
-                        monthly_last_date = monthly_last_date[-1]
-
-                    if isinstance(wk_first_date, pd.DatetimeIndex) and len(wk_first_date) > 0:
-                        wk_first_date = wk_first_date[0]
-
-                    # Ensure all dates are datetime objects
-                    if not all(isinstance(d, (datetime, pd.Timestamp)) for d in [monthly_first_date, wk_first_date, monthly_last_date]):
+                    if mo_proximal is None or mo_distal is None:
+                        logging.warning(f"Monthly zone missing proximal/distal: {monthly_zone}")
                         continue
 
-                    # Lower bound: weekly first date must be on/after monthly first date.
-                    # Upper bound: weekly first date must be before the last monthly candle date.
-                    if not (monthly_first_date <= wk_first_date < monthly_last_date):
-                        continue
-                    
-                    # Additional new checks:
-                    # a) Formation Within Last 2 Months
-                    two_months_ago = datetime.now() - timedelta(days=60)  # Roughly 2 months
-                    if wk_first_date < two_months_ago:
-                        continue
-                    
-                    # b) Weekly zone formed below the current market price
-                    try:
-                        if float(wk_prox) > current_market_price:
-                            continue
-                    except (TypeError, ValueError):
-                        continue
-                    
-                    # c) At least one weekly candle's low is less than the monthly zone's proximal
-                    candle_low_below_proximal = False
-                    for candle in wk_candles:
-                        # For safety, we assume your 'candles' structure might store OHLC in a sub-dict or keys might differ
-                        # Adjust as needed for your exact data structure
-                        # Example: candle.get("ohlc", {}).get("Low", <some_default>)
-                        # In your snippet, it might be candle['date'], candle['low'], etc.
-                        candle_low = None
-                        if "ohlc" in candle:
-                            candle_low = candle["ohlc"].get("Low")
-                        elif "low" in candle:
-                            candle_low = candle["low"]
-                        # If we still don't have a low, skip
-                        if candle_low is None or mo_proximal is None:
-                            continue
-                        try:
-                            if float(candle_low) < float(mo_proximal):
-                                candle_low_below_proximal = True
-                                break
-                        except (TypeError, ValueError):
-                            continue
-
-                    if not candle_low_below_proximal:
-                        continue
-                    
-                    # Check zone type Demand condition as before
-                    if wk_zone.get("zoneType") == "Demand":
-                        try:
-                            if float(wk_dist) > current_market_price:
-                                continue
-                        except (TypeError, ValueError):
+                    for wk_zone in wk_demand_zones:
+                        if not isinstance(wk_zone, dict):
+                            logging.warning(f"Skipped non-dict weekly zone: {wk_zone}")
                             continue
                         
-                    # Initialize '1d' key as a list if it doesn't exist and append the weekly zone
-                    result.setdefault("1d", []).append(wk_zone)
+                        wk_dist = wk_zone.get('distal')
+                        wk_dates = wk_zone.get("dates")
+                        wk_candles = wk_zone.get("candles", [])
 
-        return result
+                        # Ensure weekly zone has at least two candles for comparison
+                        if not wk_candles or len(wk_candles) < 2:
+                            logging.warning(f"Weekly zone lacks sufficient candles: {wk_zone}")
+                            continue
+
+                        # Extract the first date in wk_dates
+                        wk_first_date = None
+                        if isinstance(wk_dates, pd.DatetimeIndex) and len(wk_dates) > 0:
+                            wk_first_date = wk_dates[0]
+                        elif isinstance(wk_dates, list) and len(wk_dates) > 0:
+                            wk_first_date = wk_dates[0]
+                        elif isinstance(wk_dates, pd.Timestamp):
+                            wk_first_date = wk_dates
+                        else:
+                            logging.warning(f"Unable to parse dates for weekly zone: {wk_zone}")
+                            continue
+
+                        # Determine if the weekly zone's first date is within the monthly timeframe or within the last two months
+                        within_monthly_timeframe = False
+                        within_last_two_months = False
+
+                        if isinstance(wk_first_date, (datetime, pd.Timestamp)):
+                            # Ensure wk_first_date is timezone-aware
+                            if wk_first_date.tzinfo is None or wk_first_date.tz is None:
+                                logging.warning(f"Weekly zone's first date is timezone-naive: {wk_zone}")
+                                # Optionally, localize to a default timezone or skip
+                                # For example, assuming UTC:
+                                wk_first_date = wk_first_date.replace(tzinfo=pd.Timestamp.now().tz)
+
+                            # Get the timezone from wk_first_date
+                            wk_timezone = wk_first_date.tz
+
+                            # Define two_months_ago as timezone-aware
+                            two_months_ago = pd.Timestamp.now(tz=wk_timezone) - pd.Timedelta(days=60)
+
+                            # Check within monthly timeframe
+                            monthly_first_date = monthly_candles[0].get("date")
+                            monthly_last_date = monthly_candles[-1].get("date")
+
+                            # Handle DatetimeIndex if necessary
+                            if isinstance(monthly_first_date, pd.DatetimeIndex) and len(monthly_first_date) > 0:
+                                monthly_first_date = monthly_first_date[0]
+                            if isinstance(monthly_last_date, pd.DatetimeIndex) and len(monthly_last_date) > 0:
+                                monthly_last_date = monthly_last_date[-1]
+
+                            # Ensure monthly_first_date and monthly_last_date are timezone-aware
+                            if isinstance(monthly_first_date, (datetime, pd.Timestamp)):
+                                if monthly_first_date.tzinfo is None or monthly_first_date.tz is None:
+                                    logging.warning(f"Monthly zone's first date is timezone-naive: {monthly_zone}")
+                                    # Optionally, localize to the same timezone as wk_first_date
+                                    monthly_first_date = monthly_first_date.replace(tzinfo=wk_timezone)
+                            else:
+                                logging.warning(f"Monthly zone's first date is not a datetime object: {monthly_zone}")
+                                continue
+
+                            if isinstance(monthly_last_date, (datetime, pd.Timestamp)):
+                                if monthly_last_date.tzinfo is None or monthly_last_date.tz is None:
+                                    logging.warning(f"Monthly zone's last date is timezone-naive: {monthly_zone}")
+                                    # Optionally, localize to the same timezone as wk_first_date
+                                    monthly_last_date = monthly_last_date.replace(tzinfo=wk_timezone)
+                            else:
+                                logging.warning(f"Monthly zone's last date is not a datetime object: {monthly_zone}")
+                                continue
+
+                            # Compare dates
+                            if monthly_first_date <= wk_first_date < monthly_last_date:
+                                within_monthly_timeframe = True
+
+                            # Check within last two months
+                            if wk_first_date >= two_months_ago:
+                                within_last_two_months = True
+
+                            # Proceed only if either condition is met
+                            if not (within_monthly_timeframe or within_last_two_months):
+                                logging.debug(f"Weekly zone date {wk_first_date} not within monthly timeframe or last two months.")
+                                continue
+                        else:
+                            logging.warning(f"Weekly zone's first date is not a datetime object: {wk_zone}")
+                            continue
+
+                        if wk_dist is None:
+                            logging.warning(f"Weekly zone missing distal: {wk_zone}")
+                            continue
+
+                        try:
+                            # New distal condition: monthly_distal < weekly_distal < monthly_proximal
+                            if not (float(mo_distal) < float(wk_dist) < float(mo_proximal)):
+                                logging.debug(f"Weekly distal {wk_dist} not in range ({mo_distal}, {mo_proximal}) for zone {wk_zone}")
+                                continue
+                        except (TypeError, ValueError):
+                            logging.error(f"Invalid proximal/distal values in weekly zone: {wk_zone}")
+                            continue
+
+                        # c) At least one weekly candle's low is less than the monthly zone's proximal
+                        candle_low_below_proximal = False
+                        for candle in wk_candles:
+                            candle_low = None
+                            if "ohlc" in candle:
+                                candle_low = candle["ohlc"].get("Low")
+                            elif "low" in candle:
+                                candle_low = candle["low"]
+                            # If we still don't have a low, skip
+                            if candle_low is None or mo_proximal is None:
+                                continue
+                            try:
+                                if float(candle_low) < float(mo_proximal):
+                                    candle_low_below_proximal = True
+                                    break
+                            except (TypeError, ValueError):
+                                continue
+
+                        if not candle_low_below_proximal:
+                            logging.debug(f"No candle low below monthly proximal in weekly zone: {wk_zone}")
+                            continue
+
+                        # Demand Zone Specific Condition:
+                        if wk_zone.get("zoneType") == "Demand":
+                            try:
+                                if float(wk_dist) > current_market_price:
+                                    logging.debug(f"Weekly distal {wk_dist} exceeds current market price {current_market_price} in zone {wk_zone}")
+                                    continue
+                            except (TypeError, ValueError):
+                                logging.error(f"Invalid distal value in weekly zone: {wk_zone}")
+                                continue
+
+                        # Append the valid weekly zone to the result
+                        logging.debug(f"Adding weekly zone to result: {wk_zone}")
+                        result.setdefault("1d", []).append(wk_zone)
+
+            return result
 
     def retain_nearest_supply_zone(self, result: Dict[str, Any], current_market_price: float) -> Dict[str, Any]:
         """

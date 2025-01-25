@@ -1,8 +1,6 @@
 # stock_config.py
 
 special_stocks_map = {
-    'TATAMOTORS': 'TATAPOWER',
-    'RELIANCE': 'ONGC',
     'ADANIPORTS': 'NIFTY50',
     'ASIANPAINT': 'NIFTY50',
     'AXISBANK': 'NIFTY50',
