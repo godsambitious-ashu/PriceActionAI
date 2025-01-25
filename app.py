@@ -4,7 +4,6 @@ from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
 from stock_data.demand_zone_manager import DemandZoneManager
 from stock_data.gpt_client import GPTClient
-import plotly.io as pio
 
 import logging
 import os
@@ -56,11 +55,6 @@ def user_info():
         return redirect(url_for('index'))
 
     return render_template('user_info.html')
-
-@app.route('/customgpt', methods=['POST'])
-def customgpt():
-    # Legacy route; not used with AJAX.
-    return redirect(url_for('index'))
 
 @app.route('/get_chat_history', methods=['GET'])
 def get_chat_history():
@@ -183,7 +177,7 @@ def index():
                 serialized_fresh = gpt_client.serialize_demand_zones(final_zones_for_gpt)
             else:
                 serialized_fresh = {}
-            session['demand_zones_fresh_dict'] = final_zones_for_gpt
+            session['gpt_dto'] = final_zones_for_gpt
             logging.debug(f"Serialized fresh zones stored in session: {final_zones_for_gpt}")
 
             # Store Current Stock Code in Session
@@ -304,8 +298,8 @@ def send_message():
 
     gpt_response = "GPT not available."
     if gpt_client:
-        demand_zones_fresh_dict = session.get('demand_zones_fresh_dict', {})
-        gpt_response = gpt_client.call_gpt(user_message, demand_zones_fresh_dict)
+        gpt_dto = session.get('gpt_dto', {})
+        gpt_response = gpt_client.call_gpt(user_message, gpt_dto)
     
     return jsonify({'message': gpt_response})
 

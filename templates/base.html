@@ -50,13 +50,13 @@
       background-color: white !important;
     }
   </style>
-{% endblock %}
+  {% endblock %}
 
 </head>
 <body>
   <div class="container-fluid">
     <!-- === Navbar === -->
-    <nav class="navbar navbar-light">
+    <nav class="navbar navbar-light bg-light shadow">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">
           <i class="fas fa-robot me-2"></i>AI Stock Visualizer
@@ -65,7 +65,14 @@
     </nav>
     <!-- === End Navbar === -->
 
-    {% block gpt_section %}{% endblock %}
+    <!-- === Top Control Bar === -->
+    <div class="top-control-bar bg-white shadow-sm py-2 px-3 mb-3 d-flex flex-wrap align-items-center gap-2">
+      {% block gpt_section %}{% endblock %}
+      {% block search_section %}{% endblock %}
+    </div>
+    <!-- === End Top Control Bar === -->
+
+    <!-- === Main Content === -->
     {% block content %}{% endblock %}
     
     <!-- Optional Footer -->

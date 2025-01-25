@@ -2,307 +2,185 @@
 {% extends "base.html" %}
 
 {% block title %}
-  Stock Data Visualization
+  AI-Powered Stock Data Visualization
 {% endblock %}
 
 {% block head %}
-  <style>
-    /* Remove centering constraints to allow full-width usage */
-    .row-main {
-      padding: 2rem 1rem;
-      /* Remove justify-content if it restricts chart expansion */
-    }
-    .main-content {
-      width: 100%;
-      max-width: none; /* Allow content to span full width */
-      margin: 0 auto;
-    }
-    .chart-container {
-      background-color: #fff;
-      padding: 1rem;
-      margin: 1rem 0; /* Use vertical margin only */
-      width: 100%;     /* Let the container fill the available width */
-      border-radius: 5px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    /* Button Panel Styles */
-    .button-panel {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 1.5rem;
-    }
-    .button-panel .btn {
-      margin: 0 0.5rem;
-    }
-    /* Toggle Switch Styles (Assuming you have these styles elsewhere, else define them here) */
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-    }
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 24px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    .toggle-switch input:checked + .slider {
-      background-color: #2196F3;
-    }
-    .toggle-switch input:checked + .slider:before {
-      transform: translateX(26px);
-    }
-    /* Optional: Active Button Styling */
-    .btn.active {
-      background-color: #0056b3;
-      border-color: #0056b3;
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}"> <!-- Ensure this is after global CSS -->
 {% endblock %}
 
 {% block gpt_section %}
   {% if enable_gpt %}
-    <!-- GPT Search Bar at the top -->
-    <div class="gpt-section mb-4">
-      <form id="gptForm">
-        <div class="input-group">
-          <input type="hidden" name="stock_code" value="{{ current_stock_code }}">
-          <input
-            type="text"
-            id="gptInput"
-            name="message"
-            class="form-control"
-            placeholder="Ask our AI assistant..."
-            required
-          />
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-paper-plane"></i> Ask GPT
-          </button>
-        </div>
-      </form>
-    </div>
+  <!-- GPT Search Bar -->
+  <div class="gpt-section">
+    <form id="gptForm">
+      <input type="hidden" name="stock_code" value="{{ current_stock_code }}">
+      <input
+        type="text"
+        id="gptInput"
+        name="message"
+        class="custom-form-control"
+        placeholder="Ask AI..."
+        required
+      />
+      <button type="submit" class="custom-btn custom-btn-primary">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </form>
+  </div>
   {% endif %}
 {% endblock %}
 
-{% block content %}
-  <!-- User Info -->
-  <div class="user-info text-center mb-4">
-    <h2>Welcome, {{ name }}!</h2>
-    <p>Your email: {{ email }}</p>
-  </div>
-
-  <!-- Search Form -->
-  <div class="form-section mb-5">
-    <h1>Stock Data Visualization</h1>
+{% block search_section %}
+  <!-- Stock Search Form -->
+  <div class="search-section">
     <form method="POST">
-      <div class="row g-3 justify-content-center">
-        <div class="col-md-5">
-          <label for="stock_code" class="form-label">Stock Code:</label>
-          <input
-            type="text"
-            id="stock_code"
-            name="stock_code"
-            class="form-control"
-            placeholder="e.g., AAPL, GOOGL"
-            required
-          />
-        </div>
-        <div class="col-md-5">
-          <label for="period" class="form-label">Period:</label>
-          <select id="period" name="period" class="form-select" required>
-            <option value="1d">1 Day</option>
-            <option value="5d">5 Days</option>
-            <option value="1mo">1 Month</option>
-            <option value="3mo">3 Months</option>
-            <option value="6mo">6 Months</option>
-            <option value="1y" selected>1 Year</option>
-            <option value="2y">2 Years</option>
-            <option value="5y">5 Years</option>
-            <option value="ytd">Year to Date</option>
-            <option value="max">Max</option>
-          </select>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-chart-line me-2"></i> Get Data
-          </button>
-        </div>
-      </div>
+      <input
+        type="text"
+        id="stock_code"
+        name="stock_code"
+        class="custom-form-control"
+        placeholder="Stock"
+        required
+      />
+      <select id="period" name="period" class="custom-form-select">
+        <option value="1d">1D</option>
+        <option value="5d">5D</option>
+        <option value="1mo">1M</option>
+        <option value="3mo">3M</option>
+        <option value="6mo">6M</option>
+        <option value="1y" selected>1Y</option>
+        <option value="2y">2Y</option>
+        <option value="5y">5Y</option>
+        <option value="ytd">YTD</option>
+        <option value="max">Max</option>
+      </select>
+      <button type="submit" class="custom-btn custom-btn-success">
+        <i class="fas fa-search"></i>
+      </button>
     </form>
   </div>
+{% endblock %}
 
-  {% if error %}
-    <div class="error text-center text-danger mb-4">
-      {{ error }}
-    </div>
-  {% endif %}
-
-  <!-- Display last chat entry if exists -->
+{% block content %}
   {% if chat_history %}
     {% set chat = chat_history[-1] %}
-    <div class="row-main">
-      <div class="main-content">
-        <div class="chat-panel">
-          <h4 class="text-center">{{ chat.stock_code }} - {{ chat.timestamp }}</h4>
-          <div id="chatDisplay">
-            {% if chat.user_query %}
-              <div class="chat-message user">
-                <div class="message"><strong>You:</strong> {{ chat.user_query }}</div>
-              </div>
-            {% endif %}
-            {% if chat.gpt_answer %}
-              <div class="chat-message assistant">
-                <div class="message"><strong>GPT:</strong> {{ chat.gpt_answer }}</div>
-              </div>
-            {% endif %}
+    <div class="chat-panel">
+      <h6 class="text-center mb-1">{{ chat.stock_code }} - {{ chat.timestamp }}</h6>
+      <div id="chatDisplay" style="max-height: 200px; overflow-y: auto;">
+        {% if chat.user_query %}
+          <div class="chat-message user">
+            <div class="message"><strong>You:</strong> {{ chat.user_query }}</div>
+          </div>
+        {% endif %}
+        {% if chat.gpt_answer %}
+          <div class="chat-message assistant">
+            <div class="message"><strong>GPT:</strong> {{ chat.gpt_answer }}</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Stock / Index Buttons -->
+      <div class="button-panel mt-2">
+        <button type="button" class="custom-btn custom-btn-success active" onclick="showData('stock')">Stock</button>
+        {% if index_charts %}
+          <button type="button" class="custom-btn custom-btn-success" onclick="showData('index')">Index</button>
+        {% else %}
+          <button type="button" class="custom-btn custom-btn-success" disabled>Index</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Stock Charts Section -->
+    <div id="stock_section">
+      {% if charts %}
+        <div class="charts-section">
+          <h6 class="text-center mb-2">Candlestick Charts - Stock</h6>
+
+          <!-- Stock Interval Buttons -->
+          <div class="button-panel">
+            <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('stock', '1d')">1D</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1wk')">1W</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1mo')">1M</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '3mo')">3M</button>
           </div>
 
-          <!-- New Button Panel for Stock and Index -->
-          <div class="button-panel mb-4">
-            <button class="btn btn-success active" onclick="showData('stock')">Stock</button>
-            {% if index_charts %}
-              <button class="btn btn-success mx-2" onclick="showData('index')">Index</button>
+          <!-- Stock Charts Loop -->
+          {% for interval, chart_data in charts.items() %}
+            {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
+              <div class="chart-container mb-2" id="chart_container_stock_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
             {% else %}
-              <button class="btn btn-success mx-2" disabled>Index</button>
+              <div class="chart-container mb-2" id="chart_container_stock_{{ interval }}" style="display:none;">
             {% endif %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">{{ interval|upper }} Interval</h6>
+                  <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_stock_{{ interval }}')">
+                    <i class="fas fa-expand"></i>
+                  </button>
+                </div>
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" id="fresh_toggle_stock_{{ interval }}" onchange="toggleFreshZones('stock', '{{ interval }}')">
+                  <label class="form-check-label" for="fresh_toggle_stock_{{ interval }}">
+                    Fresh zones
+                  </label>
+                </div>
+                <div id="chart_all_zones_stock_{{ interval }}">
+                  {{ chart_data.all_zones | safe }}
+                </div>
+                <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
+                  {{ chart_data.fresh_zones | safe }}
+                </div>
+              </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Index Charts Section -->
+    {% if index_charts %}
+      <div id="index_section" style="display:none;">
+        <div class="charts-section">
+          <h6 class="text-center mb-2">Candlestick Charts - Index</h6>
+
+          <!-- Index Interval Buttons -->
+          <div class="button-panel">
+            <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('index', '1d')">1D</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1wk')">1W</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1mo')">1M</button>
+            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '3mo')">3M</button>
           </div>
 
-          <!-- Stock Charts Section -->
-          <div id="stock_section">
-            {% if charts %}
-              <div class="charts-section mt-4">
-                <h5 class="text-center">Candlestick Charts - Stock</h5>
-
-                <!-- Horizontal Button Panel for Stock Intervals -->
-                <div class="button-panel">
-                  <button class="btn btn-primary mx-2 active" onclick="showChart('stock', '1d')">1D</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '1wk')">1W</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '1mo')">1M</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('stock', '3mo')">3M</button>
-                </div>
-
-                <!-- Stock Charts Loop -->
-                {% for interval, chart_data in charts.items() %}
-                  {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
-                    <div class="chart-container mb-4" id="chart_container_stock_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
-                  {% else %}
-                    <!-- If there are other intervals, decide how to handle them -->
-                    <div class="chart-container mb-4" id="chart_container_stock_{{ interval }}" style="display:none;">
-                  {% endif %}
-                    <div class="d-flex justify-content-between align-items-center">
-                      <h6>{{ interval|upper }} Interval</h6>
-                      <button
-                        class="btn btn-secondary btn-sm"
-                        onclick="toggleFullscreen('chart_container_stock_{{ interval }}')"
-                      >
-                        Fullscreen
-                      </button>
-                    </div>
-                    <div class="toggle-section mb-2">
-                      <label for="fresh_toggle_stock_{{ interval }}">
-                        Show only fresh demand zones:
-                      </label>
-                      <label class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="fresh_toggle_stock_{{ interval }}"
-                          onchange="toggleFreshZones('stock', '{{ interval }}')"
-                        />
-                        <span class="slider"></span>
-                      </label>
-                    </div>
-                    <div id="chart_all_zones_stock_{{ interval }}">
-                      {{ chart_data.all_zones | safe }}
-                    </div>
-                    <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
-                      {{ chart_data.fresh_zones | safe }}
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
+          <!-- Index Charts Loop -->
+          {% for interval, chart_data in index_charts.items() %}
+            {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
+              <div class="chart-container mb-2" id="chart_container_index_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
+            {% else %}
+              <div class="chart-container mb-2" id="chart_container_index_{{ interval }}" style="display:none;">
             {% endif %}
-          </div>
-
-          <!-- Index Charts Section (only if index_charts exist) -->
-          {% if index_charts %}
-            <div id="index_section" style="display:none;">
-              <div class="charts-section mt-4">
-                <h5 class="text-center">Candlestick Charts - Index</h5>
-
-                <!-- Horizontal Button Panel for Index Intervals -->
-                <div class="button-panel">
-                  <button class="btn btn-primary mx-2 active" onclick="showChart('index', '1d')">1D</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('index', '1wk')">1W</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('index', '1mo')">1M</button>
-                  <button class="btn btn-primary mx-2" onclick="showChart('index', '3mo')">3M</button>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">{{ interval|upper }} Interval</h6>
+                  <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_index_{{ interval }}')">
+                    <i class="fas fa-expand"></i>
+                  </button>
                 </div>
-
-                <!-- Index Charts Loop -->
-                {% for interval, chart_data in index_charts.items() %}
-                  {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
-                    <div class="chart-container mb-4" id="chart_container_index_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
-                  {% else %}
-                    <!-- If there are other intervals, decide how to handle them -->
-                    <div class="chart-container mb-4" id="chart_container_index_{{ interval }}" style="display:none;">
-                  {% endif %}
-                    <div class="d-flex justify-content-between align-items-center">
-                      <h6>{{ interval|upper }} Interval</h6>
-                      <button
-                        class="btn btn-secondary btn-sm"
-                        onclick="toggleFullscreen('chart_container_index_{{ interval }}')"
-                      >
-                        Fullscreen
-                      </button>
-                    </div>
-                    <div class="toggle-section mb-2">
-                      <label for="fresh_toggle_index_{{ interval }}">
-                        Show only fresh demand zones:
-                      </label>
-                      <label class="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="fresh_toggle_index_{{ interval }}"
-                          onchange="toggleFreshZones('index', '{{ interval }}')"
-                        />
-                        <span class="slider"></span>
-                      </label>
-                    </div>
-                    <div id="chart_all_zones_index_{{ interval }}">
-                      {{ chart_data.all_zones | safe }}
-                    </div>
-                    <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
-                      {{ chart_data.fresh_zones | safe }}
-                    </div>
-                  </div>
-                {% endfor %}
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" id="fresh_toggle_index_{{ interval }}" onchange="toggleFreshZones('index', '{{ interval }}')">
+                  <label class="form-check-label" for="fresh_toggle_index_{{ interval }}">
+                    Fresh zones
+                  </label>
+                </div>
+                <div id="chart_all_zones_index_{{ interval }}">
+                  {{ chart_data.all_zones | safe }}
+                </div>
+                <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
+                  {{ chart_data.fresh_zones | safe }}
+                </div>
               </div>
-            </div>
-          {% endif %}
+          {% endfor %}
         </div>
       </div>
     {% endif %}
+  {% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -342,7 +220,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateChatDisplay(userMsg, gptMsg) {
     const chatDisplay = document.getElementById('chatDisplay');
     if (chatDisplay) {
-      chatDisplay.innerHTML = `
+      // Append new messages instead of overriding
+      chatDisplay.innerHTML += `
         <div class="chat-message user">
           <div class="message"><strong>You:</strong> ${userMsg}</div>
         </div>
@@ -350,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="message"><strong>GPT:</strong> ${gptMsg}</div>
         </div>
       `;
+      chatDisplay.scrollTop = chatDisplay.scrollHeight; // Auto-scroll to the bottom
     }
   }
 
@@ -390,23 +270,23 @@ document.addEventListener('DOMContentLoaded', function() {
   window.showData = function(dataType) {
     const stockSection = document.getElementById('stock_section');
     const indexSection = document.getElementById('index_section');
-    const stockButton = document.querySelector('.button-panel button[onclick="showData(\'stock\')"]');
-    const indexButton = document.querySelector('.button-panel button[onclick="showData(\'index\')"]');
+    const stockBtn = document.querySelector('.chat-panel .custom-btn-success[onclick="showData(\'stock\')"]');
+    const indexBtn = document.querySelector('.chat-panel .custom-btn-success[onclick="showData(\'index\')"]');
 
     if (dataType === 'stock') {
-      stockSection.style.display = 'block';
+      if (stockSection) stockSection.style.display = 'block';
       if (indexSection) indexSection.style.display = 'none';
-      stockButton.classList.add('active');
-      if (indexButton) indexButton.classList.remove('active');
-    } else if (dataType === 'index') {
-      stockSection.style.display = 'none';
+      if (stockBtn) stockBtn.classList.add('active');
+      if (indexBtn) indexBtn.classList.remove('active');
+    } else {
+      if (stockSection) stockSection.style.display = 'none';
       if (indexSection) indexSection.style.display = 'block';
-      stockButton.classList.remove('active');
-      if (indexButton) indexButton.classList.add('active');
+      if (stockBtn) stockBtn.classList.remove('active');
+      if (indexBtn) indexBtn.classList.add('active');
     }
   };
 
-  // Show/Hide Charts Based on Selected Timeframe within Data Type
+  // Show/Hide Charts Based on Selected Interval
   window.showChart = function(dataType, selectedInterval) {
     const intervals = ['1d', '1wk', '1mo', '3mo'];
 
@@ -425,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // Initialize - Show Stock section and default chart
+  // Initialize - Show Stock section and the 1D chart by default
   showData('stock');
   showChart('stock', '1d');
 });
