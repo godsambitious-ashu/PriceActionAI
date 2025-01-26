@@ -1,46 +1,49 @@
-/* index.css */
+/* static/css/styles.css */
 
 /* --- Top Control Bar --- */
 .top-control-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem; /* Increased gap for better spacing */
-  padding: 0.5rem 1rem;
   background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   border-radius: 5px;
-  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* GPT Section */
-.gpt-section form {
+/* Remove any order or margin auto rules that might conflict */
+.gpt-section {
+  /* previously had order or margin-left settings? remove them */
+}
+.search-section {
+  /* previously had order or margin settings? remove them */
+}
+
+/* GPT Section & Search Section forms */
+.gpt-section form,
+.search-section form {
   display: flex;
   align-items: center;
-  gap: 0.5rem; /* Increased gap for better spacing */
-  flex: 1; /* Allow GPT section to take available space */
-  flex-wrap: nowrap; /* Prevent wrapping */
+  gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 
+/* Example: custom form controls */
 .custom-form-control {
-  flex-grow: 1; /* Allow the input to expand */
+  flex-grow: 1;
   font-size: 0.85rem;
-  padding: 0.25rem 0.5rem; /* Increased padding for better usability */
+  padding: 0.25rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
 
 .custom-form-select {
-  flex-shrink: 0; /* Prevent dropdown from shrinking */
+  flex-shrink: 0;
   font-size: 0.85rem;
-  padding: 0.25rem 0.5rem; /* Increased padding for better usability */
+  padding: 0.25rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
 
 .custom-btn {
-  flex-shrink: 0; /* Prevent button from shrinking */
-  padding: 0.25rem 0.75rem; /* Increased padding for better usability */
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
   font-size: 0.85rem;
   border: none;
   border-radius: 4px;
@@ -54,7 +57,6 @@
   background-color: #007bff;
   color: #fff;
 }
-
 .custom-btn-primary:hover {
   background-color: #0056b3;
 }
@@ -63,7 +65,6 @@
   background-color: #28a745;
   color: #fff;
 }
-
 .custom-btn-success:hover {
   background-color: #218838;
 }
@@ -72,18 +73,8 @@
   background-color: #6c757d;
   color: #fff;
 }
-
 .custom-btn-secondary:hover {
   background-color: #5a6268;
-}
-
-/* Search Section */
-.search-section form {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem; /* Increased gap for better spacing */
-  flex: 2; /* Allow search section to take more space */
-  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 /* --- Chat Panel --- */
@@ -98,16 +89,14 @@
 .chat-message {
   margin-bottom: 0.5rem;
 }
-
 .chat-message.user .message {
   background-color: #d1e7dd; 
   padding: 0.3rem 0.6rem;
   border-radius: 12px;
   display: inline-block;
 }
-
 .chat-message.assistant .message {
-  background-color: #cff4fc; 
+  background-color: #cff4fc;
   padding: 0.3rem 0.6rem;
   border-radius: 12px;
   display: inline-block;
@@ -134,7 +123,7 @@
 
 /* --- Chart Container --- */
 .chart-container {
-  background-color: #ffffff; /* White background */
+  background-color: #ffffff; 
   margin-bottom: 1rem;
   padding: 1rem;
   border-radius: 5px;

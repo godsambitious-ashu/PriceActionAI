@@ -1,4 +1,4 @@
-{# index.html #}
+{# templates/index.html #}
 {% extends "base.html" %}
 
 {% block title %}
@@ -11,23 +11,25 @@
 
 {% block gpt_section %}
   {% if enable_gpt %}
-  <!-- GPT Search Bar -->
-  <div class="gpt-section">
-    <form id="gptForm">
-      <input type="hidden" name="stock_code" value="{{ current_stock_code }}">
-      <input
-        type="text"
-        id="gptInput"
-        name="message"
-        class="custom-form-control"
-        placeholder="Ask AI..."
-        required
-      />
-      <button type="submit" class="custom-btn custom-btn-primary">
-        <i class="fas fa-paper-plane"></i>
-      </button>
-    </form>
-  </div>
+    <!-- GPT Search Bar -->
+    <div class="gpt-section">
+      <form id="gptForm">
+        <input type="hidden" name="stock_code" value="{{ current_stock_code }}">
+        <!-- AI Input -->
+        <input
+          type="text"
+          id="gptInput"
+          name="message"
+          class="custom-form-control"
+          placeholder="Ask AI..."
+          required
+        />
+        <!-- AI Submit Button -->
+        <button type="submit" class="custom-btn custom-btn-primary">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </form>
+    </div>
   {% endif %}
 {% endblock %}
 
@@ -35,6 +37,7 @@
   <!-- Stock Search Form -->
   <div class="search-section">
     <form method="POST">
+      <!-- Stock Search Input -->
       <input
         type="text"
         id="stock_code"
@@ -43,6 +46,7 @@
         placeholder="Stock"
         required
       />
+      <!-- Timeframe Select -->
       <select id="period" name="period" class="custom-form-select">
         <option value="1d">1D</option>
         <option value="5d">5D</option>
@@ -55,7 +59,8 @@
         <option value="ytd">YTD</option>
         <option value="max">Max</option>
       </select>
-      <button type="submit" class="custom-btn custom-btn-success">
+      <!-- Search Button -->
+      <button type="submit" class="custom-btn custom-btn-success search-btn">
         <i class="fas fa-search"></i>
       </button>
     </form>
