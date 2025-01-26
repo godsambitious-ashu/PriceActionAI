@@ -4,8 +4,10 @@ from openai import OpenAI
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, List
+import math
+
 class GPTClient:
     def __init__(self, api_key):
         if not api_key:
@@ -19,24 +21,39 @@ class GPTClient:
         except Exception as e:
             logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
+        
         messages = [
             {
                 "role": "system",
                 "content": (
                     "You are a friendly and knowledgeable financial assistant specializing in stock analysis. "
-                    "Your task is to recommend optimal entry points and target prices for stocks based on provided demand zones data. "
-                    "Please adhere to the following guidelines strictly:\n"
-                    "1. If the '3mo_demand_zone' is present and not empty, use it to recommend a primary buying range. If it's absent or empty, use the '1mo_demand_zone'.\n"
-                    "2. For the selected demand zone, recommend it as one of the finest buying ranges for the stock.\n"
-                    "3. Suggest multiple entry points within the buying range, each accompanied by a corresponding stop-loss.\n"
-                    "4. Recommend the target price based on the 'target' value in the data.\n"
-                    "5. Do not mention, reference, or summarize the provided zones data in your response.\n"
-                    "6. Do not include any technical details, calculations, or jargon. Keep your language plain, friendly, and focused solely on the recommendations.\n"
-                    "7. Follow the response format exactly as shown in the example below:\n"
+                    "Your task is to recommend optimal entry points and target prices based on provided demand zones data. "
+                    "Follow these guidelines strictly:\n"
+                    "1. Determine the primary buying range using '3mo_demand_zone' if available and not empty; otherwise, use '1mo_demand_zone'.\n"
+                    "2. Highlight the selected demand zone as a key buying range.\n"
+                    "3. If 'entries' are provided, suggest multiple entry points within the buying range, each with a corresponding stop-loss. "
+                    "Use varied language for each response. Example format:\n"
                     "   **Example Response:**\n"
-                    "   This is a great stock pick, I see a potential buying range of this stock ranging from 130.00-120.00. In this range, I feel the best entry points are 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). The target can be set to 180.27. Happy investing!\n"
-                    "8. If neither '3mo_demand_zone' nor '1mo_demand_zone' is available, respond with:\n"
-                    "   'At this point, I don't see a potential buying opportunity for this stock. There are many others that might have one—try a different one. Happy investing!'"
+                    "   This is a great stock pick, I see a potential buying range of this stock ranging from 130.00-120.00. "
+                    "In this range, I feel the best entry points are 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). "
+                    "The target can be set to 180.27. Happy investing!\n"
+                    "4. If 'entries' are empty, respond with one of the following variations without mentioning the target price:\n"
+                    "   - 'The stock is in a favorable buying range, but I don't see ideal entry points right now. Please wait for more price action to identify the best opportunities.'\n"
+                    "   - 'While the stock lies within a strong buying range, there are no optimal entry points at the moment. Consider waiting for further price movements to determine the best entries.'\n"
+                    "   - 'The stock is positioned in a good buying range, but perfect entry points are currently absent. Please monitor price action for future opportunities.'\n"
+                    "5. If 'data_type' is 'Index Data':\n"
+                    "   a. If 'entries' are not empty OR any demand zone is present, append one of the following sentences:\n"
+                    "      - 'I also see that the sector is entering a potential buying range, which is a strong signal to enter the stock confidently.'\n"
+                    "      - 'Additionally, the sector is showing signs of a buying range, enhancing confidence in entering the stock.'\n"
+                    "      - 'Moreover, the sector's movement into a buying range provides an extra boost for confident stock entry.'\n"
+                    "   b. If 'entries' are empty AND all demand zones are empty, append one of the following pro tips:\n"
+                    "      - 'Pro tip: Check the sector chart; it's beneficial if the sector supports the stock.'\n"
+                    "      - 'Pro tip: Reviewing the sector chart can be advantageous, especially if the sector is backing the stock.'\n"
+                    "      - 'Pro tip: Analyze the sector chart, as sector support can significantly benefit the stock.'\n"
+                    "6. If neither '3mo_demand_zone' nor '1mo_demand_zone' is available, respond with:\n"
+                    "   'At this point, I don't see a potential buying opportunity for this stock. There are many others that might have one—try a different one. Happy investing!'\n"
+                    "7. Do not mention, reference, or summarize the provided zones data.\n"
+                    "8. Avoid technical details, calculations, or jargon. Keep language plain and friendly, focused solely on recommendations."
                 )
             },
             {
@@ -56,9 +73,6 @@ class GPTClient:
                 )
             },
         ]
-        
-
-        
 
         for msg in messages:
             if not isinstance(msg['content'], str):
@@ -80,31 +94,41 @@ class GPTClient:
             logging.error(f"Error during GPT call: {e}")
             return f"Sorry, there was an error processing your request: {e}"
 
+
     def serialize_demand_zones(self, demand_zones_dict):
         """
         Serializes the zone_dto to a JSON string with rounded float values.
 
         Parameters:
-            demand_zones_dict (dict): The DTO dictionary to serialize. Expected structure:
+            demand_zones_dict (dict): The DTO dictionary to serialize. 
+                Expected structure can include multiple zone categories, such as:
                 {
-                    "3mo_demand_zone": "130-120",
-                    "1mo_demand_zone": "159.94-137.0",
-                    "entries": [
-                        {"entry": 142.08, "stoploss": 137.0},
-                        {"entry": 145.5, "stoploss": 139.0}
-                    ],
-                    "target": 180.27
+                    "main": {
+                        "3mo_demand_zone": "130-120",
+                        "1mo_demand_zone": "159.94-137.0",
+                        "entries": [
+                            {"entry": 142.08, "stoploss": 137.0},
+                            {"entry": 145.5, "stoploss": 139.0}
+                        ],
+                        "target": 180.27
+                    },
+                    "index": {
+                        "3mo_demand_zone": "130-120",
+                        "1mo_demand_zone": "159.94-137.0",
+                        "entries": [
+                            {"entry": 142.08, "stoploss": 137.0},
+                            {"entry": 145.5, "stoploss": 139.0}
+                        ],
+                        "target": 180.27
+                    }
                 }
 
         Returns:
             str: A JSON-formatted string representing the DTO.
         """
-        # Check for non-dictionary input and log the type
         if not isinstance(demand_zones_dict, dict):
-            logging.error(f"serialize_demand_zones expected dict but got type: {type(demand_zones_dict)}")
             return "{}"
-        
-        # Function to recursively round floats in the dictionary
+
         def round_floats(obj):
             if isinstance(obj, dict):
                 return {k: round_floats(v) for k, v in obj.items()}
@@ -116,33 +140,26 @@ class GPTClient:
                 return round(float(obj), 2)
             else:
                 return obj
-        
-        # Apply rounding to all float values in the DTO
+
         rounded_dict = round_floats(demand_zones_dict)
-        
+
         try:
-            logging.debug("Serialized dict before json.dumps: %s", rounded_dict)
             serialized_json = json.dumps(rounded_dict, indent=2)
-        except (TypeError, Exception) as e:
-            logging.error(f"Serialization error: {e}")
+        except (TypeError, Exception):
             return "{}"
-        
-        logging.debug("Successfully serialized JSON: %s", serialized_json)
+
         return serialized_json
 
-    def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones):
-        logging.debug(f"daily 1d fresh zones: {daily_all_zones}")
-        logging.debug(f"monthly fresh zones: {daily_all_zones}")
-        logging.debug(f"wk demand zones: {daily_all_zones}")
 
+    def prepare_zones(self, monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones, data_type):
+        logging.debug(f"monthly fresh zones: {monthly_fresh_zones}")
+        logging.debug(f"current market price is : {current_market_price}")
 
         # Early exit if required inputs are missing or not in expected format
         if not monthly_fresh_zones or not daily_all_zones:
-            logging.warning("Empty monthly_fresh_zones or daily_all_zones provided.")
             return {}
 
         if not isinstance(monthly_fresh_zones, list):
-            logging.warning("monthly_fresh_zones is not a list.")
             return {}
 
         # Flatten nested structures in daily_all_zones if it's a dict
@@ -156,26 +173,21 @@ class GPTClient:
                         if isinstance(sub_value, list):
                             flattened.extend(sub_value)
             daily_all_zones = flattened
-            logging.debug(f"Flattened daily_all_zones: {daily_all_zones}")
         elif not isinstance(daily_all_zones, list):
-            logging.warning("daily_all_zones is neither a list nor a dict.")
             return {}
 
         # Filter monthly zones based on 'zoneType' and 'distal' compared to current_market_price
         filtered_monthly = []
         for zone in monthly_fresh_zones:
             if not isinstance(zone, dict):
-                logging.debug(f"Skipping non-dict zone: {zone}")
                 continue
             if zone.get('zoneType') == "Demand":
                 distal = zone.get('distal')
                 try:
                     distal_value = float(distal)
                     if distal_value > current_market_price:
-                        logging.debug(f"Skipping zone with distal {distal_value} > current_market_price {current_market_price}")
                         continue
                 except (TypeError, ValueError):
-                    logging.error(f"Invalid distal value: {distal} in zone: {zone}")
                     continue
             filtered_monthly.append(zone)
         logging.debug(f"Filtered monthly zones: {filtered_monthly}")
@@ -188,21 +200,17 @@ class GPTClient:
         # Helper function to extract a single date from various formats
         def extract_single_date(date_obj, label):
             if isinstance(date_obj, pd.DatetimeIndex):
-                logging.debug(f"{label} is a DatetimeIndex, extracting first element.")
                 return date_obj[0] if len(date_obj) > 0 else None
             elif isinstance(date_obj, list):
-                logging.debug(f"{label} is a list, extracting first element.")
                 return date_obj[0] if len(date_obj) > 0 else None
             elif isinstance(date_obj, pd.Timestamp):
                 return date_obj
             else:
-                logging.debug(f"{label} has an unexpected type: {type(date_obj)}")
                 return None
 
         # Iterate through each filtered monthly zone
         for monthly_zone in filtered_monthly:
             if not isinstance(monthly_zone, dict):
-                logging.debug(f"Skipping non-dict monthly_zone: {monthly_zone}")
                 continue
             
             mo_proximal = monthly_zone.get('proximal')
@@ -211,7 +219,6 @@ class GPTClient:
 
             # Ensure monthly zone has at least two candles for reference
             if not monthly_candles or len(monthly_candles) < 2:
-                logging.debug(f"Monthly zone lacks sufficient candles: {monthly_zone}")
                 continue
             
             # Extract month/year for the first two monthly candles
@@ -222,19 +229,15 @@ class GPTClient:
 
             if first_candle_date:
                 first_month_year = (first_candle_date.month, first_candle_date.year)
-                logging.debug(f"First candle month/year: {first_month_year}")
             if second_candle_date:
                 second_month_year = (second_candle_date.month, second_candle_date.year)
-                logging.debug(f"Second candle month/year: {second_month_year}")
 
             if mo_proximal is None or mo_distal is None:
-                logging.debug(f"Monthly zone missing proximal or distal: {monthly_zone}")
                 continue
             
             # Iterate through each daily zone
             for daily_zone in daily_all_zones:
                 if not isinstance(daily_zone, dict):
-                    logging.debug(f"Skipping non-dict daily_zone: {daily_zone}")
                     continue
                 
                 daily_prox = daily_zone.get('proximal')
@@ -244,7 +247,6 @@ class GPTClient:
 
                 # Ensure daily zone has at least two candles for comparison
                 if not daily_candles or len(daily_candles) < 2:
-                    logging.debug(f"Daily zone lacks sufficient candles: {daily_zone}")
                     continue
                 
                 # Extract single dates using the helper function
@@ -254,16 +256,8 @@ class GPTClient:
 
                 # Verify that all necessary dates were successfully extracted
                 if not all([daily_first_date, monthly_first_date, monthly_last_date]):
-                    logging.error("Failed to extract one or more required dates.")
                     continue
                 
-                # Log extracted dates and their types for debugging
-                logging.debug(
-                    f"Extracted Dates - Monthly First: {monthly_first_date} (type: {type(monthly_first_date)}), "
-                    f"Monthly Last: {monthly_last_date} (type: {type(monthly_last_date)}), "
-                    f"Daily First: {daily_first_date} (type: {type(daily_first_date)})"
-                )
-
                 # Check if the daily zone's first date falls within the allowed monthly months
                 # Avoid ambiguous boolean check on daily_dates (DatetimeIndex) by checking None & length
                 if daily_dates is not None and len(daily_dates) > 0 and first_month_year and second_month_year:
@@ -271,15 +265,11 @@ class GPTClient:
                     if daily_dates_single:
                         daily_month_year = (daily_dates_single.month, daily_dates_single.year)
                         if daily_month_year not in [first_month_year, second_month_year]:
-                            logging.debug(
-                                f"Daily zone month/year {daily_month_year} does not match "
-                                f"first or second monthly month/year {first_month_year}, {second_month_year}"
-                            )
+
                             continue
                         
                 # Verify proximal and distal values are present
                 if daily_prox is None or daily_dist is None:
-                    logging.debug(f"Daily zone missing proximal or distal: {daily_zone}")
                     continue
                 
                 # Compare proximal and distal values as floats
@@ -292,13 +282,10 @@ class GPTClient:
                         daily_prox_float <= mo_proximal_float and
                         daily_dist_float >= mo_distal_float
                     )
-                    logging.debug(f"Proximal and distal in range: {in_range}")
                 except (TypeError, ValueError) as e:
-                    logging.error(f"Error converting proximal/distal to float: {e}")
                     continue
                 
                 if not in_range:
-                    logging.debug("Daily zone proximal/distal out of range.")
                     continue
                 
                 # Compare dates to ensure daily_first_date is within the monthly date range
@@ -309,15 +296,10 @@ class GPTClient:
                         isinstance(daily_first_date, pd.Timestamp) and
                         isinstance(monthly_last_date, pd.Timestamp)
                     ):
-                        logging.error("One or more date variables are not pd.Timestamp objects.")
                         continue
                     
                     # Perform the comparison: monthly_first_date <= daily_first_date < monthly_last_date
                     if not (monthly_first_date <= daily_first_date < monthly_last_date):
-                        logging.debug(
-                            f"Daily first date {daily_first_date} not within monthly range "
-                            f"{monthly_first_date} - {monthly_last_date}"
-                        )
                         continue
                 except Exception as e:
                     logging.error(f"Error comparing dates: {e}")
@@ -328,9 +310,7 @@ class GPTClient:
                     try:
                         daily_dist_value = float(daily_dist)
                         if daily_dist_value > current_market_price:
-                            logging.debug(
-                                f"Demand zone distal {daily_dist_value} > current_market_price {current_market_price}"
-                            )
+
                             continue
                     except (TypeError, ValueError):
                         logging.error(f"Invalid distal value in daily zone: {daily_dist}")
@@ -347,7 +327,7 @@ class GPTClient:
         result = self.retain_nearest_supply_zone(result, current_market_price)
 
         # Build the final zones DTO (Data Transfer Object)
-        dto = self.build_zones_dto(result, current_market_price)
+        dto = self.build_zones_dto(result, current_market_price, data_type)
 
         logging.debug(f"Final DTO: {dto}")
         return dto
@@ -378,7 +358,6 @@ class GPTClient:
             if not daily_zones_present and wk_demand_zones and isinstance(wk_demand_zones, list):
                 for monthly_zone in filtered_monthly:
                     if not isinstance(monthly_zone, dict):
-                        logging.warning(f"Skipped non-dict monthly zone: {monthly_zone}")
                         continue
                     
                     mo_proximal = monthly_zone.get('proximal')
@@ -387,7 +366,6 @@ class GPTClient:
 
                     # Ensure monthly zone has at least two candles for reference
                     if not monthly_candles or len(monthly_candles) < 2:
-                        logging.warning(f"Monthly zone lacks sufficient candles: {monthly_zone}")
                         continue
 
                     # Get month/year for the first two monthly candles
@@ -405,12 +383,10 @@ class GPTClient:
                         )
 
                     if mo_proximal is None or mo_distal is None:
-                        logging.warning(f"Monthly zone missing proximal/distal: {monthly_zone}")
                         continue
 
                     for wk_zone in wk_demand_zones:
                         if not isinstance(wk_zone, dict):
-                            logging.warning(f"Skipped non-dict weekly zone: {wk_zone}")
                             continue
                         
                         wk_dist = wk_zone.get('distal')
@@ -419,7 +395,6 @@ class GPTClient:
 
                         # Ensure weekly zone has at least two candles for comparison
                         if not wk_candles or len(wk_candles) < 2:
-                            logging.warning(f"Weekly zone lacks sufficient candles: {wk_zone}")
                             continue
 
                         # Extract the first date in wk_dates
@@ -431,7 +406,6 @@ class GPTClient:
                         elif isinstance(wk_dates, pd.Timestamp):
                             wk_first_date = wk_dates
                         else:
-                            logging.warning(f"Unable to parse dates for weekly zone: {wk_zone}")
                             continue
 
                         # Determine if the weekly zone's first date is within the monthly timeframe or within the last two months
@@ -441,7 +415,6 @@ class GPTClient:
                         if isinstance(wk_first_date, (datetime, pd.Timestamp)):
                             # Ensure wk_first_date is timezone-aware
                             if wk_first_date.tzinfo is None or wk_first_date.tz is None:
-                                logging.warning(f"Weekly zone's first date is timezone-naive: {wk_zone}")
                                 # Optionally, localize to a default timezone or skip
                                 # For example, assuming UTC:
                                 wk_first_date = wk_first_date.replace(tzinfo=pd.Timestamp.now().tz)
@@ -465,20 +438,16 @@ class GPTClient:
                             # Ensure monthly_first_date and monthly_last_date are timezone-aware
                             if isinstance(monthly_first_date, (datetime, pd.Timestamp)):
                                 if monthly_first_date.tzinfo is None or monthly_first_date.tz is None:
-                                    logging.warning(f"Monthly zone's first date is timezone-naive: {monthly_zone}")
                                     # Optionally, localize to the same timezone as wk_first_date
                                     monthly_first_date = monthly_first_date.replace(tzinfo=wk_timezone)
                             else:
-                                logging.warning(f"Monthly zone's first date is not a datetime object: {monthly_zone}")
                                 continue
 
                             if isinstance(monthly_last_date, (datetime, pd.Timestamp)):
                                 if monthly_last_date.tzinfo is None or monthly_last_date.tz is None:
-                                    logging.warning(f"Monthly zone's last date is timezone-naive: {monthly_zone}")
                                     # Optionally, localize to the same timezone as wk_first_date
                                     monthly_last_date = monthly_last_date.replace(tzinfo=wk_timezone)
                             else:
-                                logging.warning(f"Monthly zone's last date is not a datetime object: {monthly_zone}")
                                 continue
 
                             # Compare dates
@@ -491,20 +460,16 @@ class GPTClient:
 
                             # Proceed only if either condition is met
                             if not (within_monthly_timeframe or within_last_two_months):
-                                logging.debug(f"Weekly zone date {wk_first_date} not within monthly timeframe or last two months.")
                                 continue
                         else:
-                            logging.warning(f"Weekly zone's first date is not a datetime object: {wk_zone}")
                             continue
 
                         if wk_dist is None:
-                            logging.warning(f"Weekly zone missing distal: {wk_zone}")
                             continue
 
                         try:
                             # New distal condition: monthly_distal < weekly_distal < monthly_proximal
                             if not (float(mo_distal) < float(wk_dist) < float(mo_proximal)):
-                                logging.debug(f"Weekly distal {wk_dist} not in range ({mo_distal}, {mo_proximal}) for zone {wk_zone}")
                                 continue
                         except (TypeError, ValueError):
                             logging.error(f"Invalid proximal/distal values in weekly zone: {wk_zone}")
@@ -529,21 +494,18 @@ class GPTClient:
                                 continue
 
                         if not candle_low_below_proximal:
-                            logging.debug(f"No candle low below monthly proximal in weekly zone: {wk_zone}")
                             continue
 
                         # Demand Zone Specific Condition:
                         if wk_zone.get("zoneType") == "Demand":
                             try:
                                 if float(wk_dist) > current_market_price:
-                                    logging.debug(f"Weekly distal {wk_dist} exceeds current market price {current_market_price} in zone {wk_zone}")
                                     continue
                             except (TypeError, ValueError):
                                 logging.error(f"Invalid distal value in weekly zone: {wk_zone}")
                                 continue
 
                         # Append the valid weekly zone to the result
-                        logging.debug(f"Adding weekly zone to result: {wk_zone}")
                         result.setdefault("1d", []).append(wk_zone)
 
             return result
@@ -604,7 +566,7 @@ class GPTClient:
 
         return result
 
-    def build_zones_dto(self, zones_result: dict, current_market_price: float) -> dict:
+    def build_zones_dto(self, zones_result: Dict[str, List[Dict]], current_market_price: float, data_type) -> Dict:
         """
         Constructs a Data Transfer Object (DTO) from the provided zones_result.
 
@@ -614,52 +576,63 @@ class GPTClient:
 
         Returns:
             dict: A DTO with:
-                  - "3mo_demand_zone": "proximal-distal" string (e.g., "130.00-120.00"),
-                  - "1mo_demand_zone": "proximal-distal" string (e.g., "159.94-137.00"),
+                  - "3mo_demand_zone": Comma-separated "proximal-distal" strings (e.g., "130.00-120.00,125.00-115.00"),
+                  - "1mo_demand_zone": Comma-separated "proximal-distal" strings,
                   - "entries": List of dictionaries with "entry" and "stoploss",
                   - "target": Target price (float).
         """
 
         # DTO structure to be returned
         dto = {
+            "data_type": data_type,
             "3mo_demand_zone": None,
             "1mo_demand_zone": None,
             "entries": [],
             "target": None
         }
-
-        # 1) Find the 3mo Demand Zone from result["1mo"]
-        three_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
-        if three_mo_zone:
-            proximal = three_mo_zone.get("proximal")
-            distal = three_mo_zone.get("distal")
-            if proximal is not None and distal is not None:
-                try:
-                    # Ensure proximal and distal are floats and round to two decimals
-                    proximal = float(proximal)
-                    distal = float(distal)
-                    dto["3mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
-                except (TypeError, ValueError) as e:
-                    logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
-            else:
-                logging.warning("3mo Demand Zone found but proximal or distal is missing.")
-
-        # 2) Find the 1mo Demand Zone from result["1mo"]
-        one_mo_zone = self._get_zone(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
-        if one_mo_zone:
-            proximal = one_mo_zone.get("proximal")
-            distal = one_mo_zone.get("distal")
-            if proximal is not None and distal is not None:
-                try:
-                    # Ensure proximal and distal are floats and round to two decimals
-                    proximal = float(proximal)
-                    distal = float(distal)
-                    dto["1mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
-                except (TypeError, ValueError) as e:
-                    logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
-            else:
-                logging.warning("1mo Demand Zone found but proximal or distal is missing.")
-
+        
+        # 1) Find the two closest 3mo Demand Zones
+        three_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
+        closest_three_mo_zones = self._get_closest_zones(three_mo_zones, current_market_price, top_n=2)
+        if closest_three_mo_zones:
+            formatted_zones = []
+            for zone in closest_three_mo_zones:
+                proximal = zone.get("proximal")
+                distal = zone.get("distal")
+                if proximal is not None and distal is not None:
+                    try:
+                        proximal = float(proximal)
+                        distal = float(distal)
+                        formatted_zones.append(f"{proximal:.2f}-{distal:.2f}")
+                    except (TypeError, ValueError) as e:
+                        logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
+                else:
+                    logging.warning("3mo Demand Zone found but proximal or distal is missing.")
+            dto["3mo_demand_zone"] = ",".join(formatted_zones)
+        else:
+            logging.warning("No 3mo Demand Zones found.")
+        
+        # 2) Find the two closest 1mo Demand Zones
+        one_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
+        closest_one_mo_zones = self._get_closest_zones(one_mo_zones, current_market_price, top_n=2)
+        if closest_one_mo_zones:
+            formatted_zones = []
+            for zone in closest_one_mo_zones:
+                proximal = zone.get("proximal")
+                distal = zone.get("distal")
+                if proximal is not None and distal is not None:
+                    try:
+                        proximal = float(proximal)
+                        distal = float(distal)
+                        formatted_zones.append(f"{proximal:.2f}-{distal:.2f}")
+                    except (TypeError, ValueError) as e:
+                        logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
+                else:
+                    logging.warning("1mo Demand Zone found but proximal or distal is missing.")
+            dto["1mo_demand_zone"] = ",".join(formatted_zones)
+        else:
+            logging.warning("No 1mo Demand Zones found.")
+        
         # 3) Collect entries from the 1d Demand Zones
         daily_zones = zones_result.get("1d", [])
         for dz in daily_zones:
@@ -679,7 +652,7 @@ class GPTClient:
                         logging.error(f"Error converting entry_price/stop_loss to float in entries: {e}")
                 else:
                     logging.warning("Daily Demand Zone found but entry_price or stop_loss is missing.")
-
+        
         # 4) Determine the target from the nearest Supply Zone
         supply_candidates = [
             z for z in zones_result.get("1mo", [])
@@ -691,7 +664,7 @@ class GPTClient:
                 # Pick the zone with proximal closest to current_market_price
                 target_zone = min(
                     supply_candidates,
-                    key=lambda z: abs(float(z.get("proximal", 0)) - current_market_price)
+                    key=lambda z: abs(float(z.get("proximal", math.inf)) - current_market_price)
                 )
                 proximal = target_zone.get("proximal")
                 if proximal is not None:
@@ -706,10 +679,9 @@ class GPTClient:
 
         return dto
 
-    def _get_zone(self, zones: list, zone_type: str, interval: str) -> dict:
+    def _get_zones(self, zones: List[Dict], zone_type: str, interval: str) -> List[Dict]:
         """
-        Returns the first zone from 'zones' matching zone_type and interval.
-        If none is found, returns an empty dict.
+        Returns all zones from 'zones' matching zone_type and interval.
 
         Parameters:
             zones (list): List of zone dictionaries.
@@ -717,15 +689,25 @@ class GPTClient:
             interval (str): The interval of the zone ('1mo', '3mo', etc.).
 
         Returns:
-            dict: The matching zone dictionary or an empty dict if not found.
+            list: A list of matching zone dictionaries.
         """
-        for z in zones:
-            if z.get("zoneType") == zone_type and z.get("interval") == interval:
-                return z
-        return {}
+        return [z for z in zones if z.get("zoneType") == zone_type and z.get("interval") == interval]
 
+    def _get_closest_zones(self, zones: List[Dict], current_market_price: float, top_n: int = 2) -> List[Dict]:
+        """
+        Returns the top_n zones with proximal prices closest to the current_market_price.
 
-# Usage Example (pseudo-code):
-# processor = ZoneProcessor()
-# dto = processor.prepare_zones(monthly_fresh_zones, daily_all_zones, current_market_price, wk_demand_zones)
-# print(dto)
+        Parameters:
+            zones (list): List of zone dictionaries.
+            current_market_price (float): The current market price.
+            top_n (int): Number of closest zones to retrieve.
+
+        Returns:
+            list: A list of the top_n closest zone dictionaries.
+        """
+        # Filter out zones without 'proximal'
+        valid_zones = [z for z in zones if z.get("proximal") is not None]
+        # Sort zones based on the absolute difference between proximal and current_market_price
+        sorted_zones = sorted(valid_zones, key=lambda z: abs(float(z["proximal"]) - current_market_price))
+        # Return the top_n closest zones
+        return sorted_zones[:top_n]

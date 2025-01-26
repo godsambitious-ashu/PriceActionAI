@@ -4,7 +4,6 @@ from stock_data.data_fetcher import DataFetcher
 from stock_data.plotter import Plotter
 from stock_data.demand_zone_manager import DemandZoneManager
 from stock_data.gpt_client import GPTClient
-
 import logging
 import os
 from datetime import datetime, timedelta
@@ -112,7 +111,8 @@ def index():
                 main_monthly_all_zones,
                 main_daily_all_zones,
                 main_current_market_price,
-                main_fresh_1d_zones, main_wk_demand_zones
+                main_fresh_1d_zones, 
+                main_wk_demand_zones
             ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
 
             # Initialize Index Data Variables
@@ -139,44 +139,61 @@ def index():
                     index_monthly_all_zones,
                     index_daily_all_zones,
                     index_current_market_price,
-                    index_fresh_1d_zones, index_wk_demand_zones
+                    index_fresh_1d_zones, 
+                    index_wk_demand_zones
                 ) = dz_manager_index.process_all_intervals(HARDCODED_INTERVALS, period)
                 logging.debug(f"Processed index_code: {index_code}")
             else:
                 logging.debug("No index_code found for the given stock_code.")
 
             # Prepare Zones for GPT using Main Stock Data
+            final_zones_for_gpt = {}
             if ENABLE_GPT and gpt_client:
-                final_zones_for_gpt = gpt_client.prepare_zones(
+                # Prepare zones for main stock
+                main_zones = gpt_client.prepare_zones(
                     main_monthly_all_zones,
                     main_fresh_1d_zones,
                     main_current_market_price,
-                    main_wk_demand_zones
+                    main_wk_demand_zones, 
+                    "Main Stock Data"
                 )
-            else:
-                final_zones_for_gpt = {}
+                final_zones_for_gpt['main'] = main_zones
+                logging.debug(f"Main zones prepared for GPT: {main_zones}")
 
-            logging.debug(f"Final zones prepared for GPT: {final_zones_for_gpt}")
+                # Prepare zones for index stock if available
+                if index_code and index_monthly_all_zones and index_current_market_price:
+                    index_zones = gpt_client.prepare_zones(
+                        index_monthly_all_zones,
+                        index_fresh_1d_zones,
+                        index_current_market_price,
+                        index_wk_demand_zones, 
+                        "Index Data"
+                    )
+                    final_zones_for_gpt['index'] = index_zones
+                    logging.debug(f"Index zones prepared for GPT: {index_zones}")
+                else:
+                    logging.debug("No valid index zones data to prepare for GPT.")
 
-            # Generate GPT Auto Answer using Main Stock Data
+            # Generate GPT Auto Answer using Combined Zones
             if ENABLE_GPT and gpt_client and final_zones_for_gpt:
                 final_query = f"The current market price of the stock is {main_current_market_price}."
+
+                # Optionally, include index market price in the query
+                if index_current_market_price:
+                    final_query += f" The current market price of the index {index_code} is {index_current_market_price}."
 
                 final_gpt_answer = gpt_client.call_gpt(final_query, final_zones_for_gpt)
 
                 session['gpt_auto_answer'] = final_gpt_answer
                 gpt_auto_answer = final_gpt_answer
+                logging.debug("GPT auto answer generated successfully.")
             elif ENABLE_GPT:
                 logging.debug("No valid zones data to generate GPT auto answer.")
                 gpt_auto_answer = "No sufficient data available for automatic analysis."
             else:
                 gpt_auto_answer = None
 
-            # Serialize Fresh Zones for Session Storage
-            if ENABLE_GPT and gpt_client:
-                serialized_fresh = gpt_client.serialize_demand_zones(final_zones_for_gpt)
-            else:
-                serialized_fresh = {}
+
             session['gpt_dto'] = final_zones_for_gpt
             logging.debug(f"Serialized fresh zones stored in session: {final_zones_for_gpt}")
 

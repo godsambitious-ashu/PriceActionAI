@@ -6,6 +6,7 @@ from stock_data.candlestick_utils import CandleStickUtils
 from stock_data.plotter import Plotter
 from stock_data.data_fetcher import DataFetcher
 from stock_data.stocks_config import special_stocks_map
+import logging
 import plotly.io as pio
 
 class DemandZoneManager:
@@ -297,9 +298,18 @@ class DemandZoneManager:
             except (AttributeError, KeyError):
                 continue
 
-            if interval == '1mo' or interval == '3mo':
-                if isinstance(result['all_zones']['demand'], list) and isinstance(result['all_zones']['supply'], list):
-                    monthly_all_zones = result['all_zones']['demand'] + result['all_zones']['supply']
+            if interval in ['1mo', '3mo']:
+                demand_zones = result['all_zones']['demand']
+                supply_zones = result['all_zones']['supply']
+    
+                if isinstance(demand_zones, list) and isinstance(supply_zones, list):
+                    # Combine demand and supply zones
+                    aggregated_zones = demand_zones + supply_zones
+                    monthly_all_zones.extend(aggregated_zones)  # Append to the list
+                    logging.debug(f"Aggregated zones for {interval}: {aggregated_zones}")
+                else:
+                    logging.warning(f"Invalid zone format for {interval}")
+
             if interval == '1d':
                 if isinstance(result['all_zones'], dict):
                     daily_all_zones = result['all_zones']
