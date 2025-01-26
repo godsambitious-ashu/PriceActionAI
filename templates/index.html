@@ -6,7 +6,8 @@
 {% endblock %}
 
 {% block head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}"> <!-- Ensure this is after global CSS -->
+  <!-- Load your global CSS (or index.css) here -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}
 
 {% block gpt_section %}
@@ -100,42 +101,47 @@
     <div id="stock_section">
       {% if charts %}
         <div class="charts-section">
-          <h6 class="text-center mb-2">Candlestick Charts - Stock</h6>
-
-          <!-- Stock Interval Buttons -->
-          <div class="button-panel">
-            <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('stock', '1d')">1D</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1wk')">1W</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1mo')">1M</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '3mo')">3M</button>
+          <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap mb-2">
+            <!-- Stock Interval Buttons -->
+            <div class="button-panel mb-0">
+              <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('stock', '1d')">1D</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1wk')">1W</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1mo')">1M</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '3mo')">3M</button>
+            </div>
           </div>
 
           <!-- Stock Charts Loop -->
           {% for interval, chart_data in charts.items() %}
-            {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
-              <div class="chart-container mb-2" id="chart_container_stock_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
-            {% else %}
-              <div class="chart-container mb-2" id="chart_container_stock_{{ interval }}" style="display:none;">
-            {% endif %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <h6 class="mb-0">{{ interval|upper }} Interval</h6>
-                  <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_stock_{{ interval }}')">
-                    <i class="fas fa-expand"></i>
-                  </button>
-                </div>
-                <div class="form-check form-switch mb-2">
-                  <input class="form-check-input" type="checkbox" id="fresh_toggle_stock_{{ interval }}" onchange="toggleFreshZones('stock', '{{ interval }}')">
+            {# We no longer display "{{ interval|upper }} Interval" text #}
+            <div class="chart-container mb-2" 
+                 id="chart_container_stock_{{ interval }}"
+                 {% if interval != '1d' %}style="display:none;"{% endif %}>
+              
+              <!-- Move fullscreen button and fresh zone toggle onto the same line -->
+              <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
+                <button type="button" class="custom-btn custom-btn-secondary btn-sm"
+                        onclick="toggleFullscreen('chart_container_stock_{{ interval }}')">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <div class="form-check form-switch">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="fresh_toggle_stock_{{ interval }}"
+                         onchange="toggleFreshZones('stock', '{{ interval }}')">
                   <label class="form-check-label" for="fresh_toggle_stock_{{ interval }}">
                     Fresh zones
                   </label>
                 </div>
-                <div id="chart_all_zones_stock_{{ interval }}">
-                  {{ chart_data.all_zones | safe }}
-                </div>
-                <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
-                  {{ chart_data.fresh_zones | safe }}
-                </div>
               </div>
+
+              <div id="chart_all_zones_stock_{{ interval }}">
+                {{ chart_data.all_zones | safe }}
+              </div>
+              <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
+                {{ chart_data.fresh_zones | safe }}
+              </div>
+            </div>
           {% endfor %}
         </div>
       {% endif %}
@@ -145,42 +151,47 @@
     {% if index_charts %}
       <div id="index_section" style="display:none;">
         <div class="charts-section">
-          <h6 class="text-center mb-2">Candlestick Charts - Index</h6>
-
-          <!-- Index Interval Buttons -->
-          <div class="button-panel">
-            <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('index', '1d')">1D</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1wk')">1W</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1mo')">1M</button>
-            <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '3mo')">3M</button>
+          <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap mb-2">
+            <!-- Index Interval Buttons -->
+            <div class="button-panel mb-0">
+              <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('index', '1d')">1D</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1wk')">1W</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1mo')">1M</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '3mo')">3M</button>
+            </div>
           </div>
 
           <!-- Index Charts Loop -->
           {% for interval, chart_data in index_charts.items() %}
-            {% if interval in ['1d', '1wk', '1mo', '3mo'] %}
-              <div class="chart-container mb-2" id="chart_container_index_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
-            {% else %}
-              <div class="chart-container mb-2" id="chart_container_index_{{ interval }}" style="display:none;">
-            {% endif %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <h6 class="mb-0">{{ interval|upper }} Interval</h6>
-                  <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_index_{{ interval }}')">
-                    <i class="fas fa-expand"></i>
-                  </button>
-                </div>
-                <div class="form-check form-switch mb-2">
-                  <input class="form-check-input" type="checkbox" id="fresh_toggle_index_{{ interval }}" onchange="toggleFreshZones('index', '{{ interval }}')">
+            {# We no longer display "{{ interval|upper }} Interval" text #}
+            <div class="chart-container mb-2"
+                 id="chart_container_index_{{ interval }}"
+                 {% if interval != '1d' %}style="display:none;"{% endif %}>
+              
+              <!-- Move fullscreen button and fresh zone toggle onto the same line -->
+              <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
+                <button type="button" class="custom-btn custom-btn-secondary btn-sm"
+                        onclick="toggleFullscreen('chart_container_index_{{ interval }}')">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <div class="form-check form-switch">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="fresh_toggle_index_{{ interval }}"
+                         onchange="toggleFreshZones('index', '{{ interval }}')">
                   <label class="form-check-label" for="fresh_toggle_index_{{ interval }}">
                     Fresh zones
                   </label>
                 </div>
-                <div id="chart_all_zones_index_{{ interval }}">
-                  {{ chart_data.all_zones | safe }}
-                </div>
-                <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
-                  {{ chart_data.fresh_zones | safe }}
-                </div>
               </div>
+
+              <div id="chart_all_zones_index_{{ interval }}">
+                {{ chart_data.all_zones | safe }}
+              </div>
+              <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
+                {{ chart_data.fresh_zones | safe }}
+              </div>
+            </div>
           {% endfor %}
         </div>
       </div>

@@ -1,6 +1,7 @@
-
 import logging
+import plotly.graph_objects as go
 from stock_data.candlestick_utils import CandleStickUtils
+
 class Plotter:
     @staticmethod
     def create_candlestick_chart(stock_data, stock_code, interval):
@@ -20,8 +21,24 @@ class Plotter:
             exciting_candle_threshold
         )
 
+        # Calculate the 20-period Exponential Moving Average (EMA)
+        stock_data['EMA20'] = stock_data['Close'].ewm(span=20, adjust=False).mean()
+        logging.debug("Calculated EMA20")
+
         # Create initial candlestick chart with highlighted candles
         fig = CandleStickUtils.highlightCandlesAsExcitingOrBase(stock_data)
+
+        # Add EMA20 to the candlestick chart
+        fig.add_trace(
+            go.Scatter(
+                x=stock_data.index,
+                y=stock_data['EMA20'],
+                mode='lines',
+                name='EMA20',
+                line=dict(color='blue', width=2)
+            )
+        )
+        logging.debug("Added EMA20 to the chart")
 
         # Update layout for TradingView-like tracer, aesthetics, and interactions
         fig.update_layout(
@@ -74,5 +91,5 @@ class Plotter:
             paper_bgcolor='rgba(0,0,0,0)'
         )
 
-        logging.debug("Candlestick chart created successfully")
+        logging.debug("Candlestick chart created successfully with EMA20")
         return fig
