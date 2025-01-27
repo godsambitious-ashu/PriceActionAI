@@ -85,8 +85,8 @@ class GPTClient:
             completion = self.client.chat.completions.create(
                 model="gpt-4o-mini-2024-07-18",
                 messages=messages,
-                max_tokens=500,
-                temperature=0.7
+                max_tokens=800,
+                temperature=0.4
             )
             gpt_answer = completion.choices[0].message.content.strip()
             return gpt_answer
@@ -565,23 +565,26 @@ class GPTClient:
                 ]
 
         return result
-
+    
+    
     def build_zones_dto(self, zones_result: Dict[str, List[Dict]], current_market_price: float, data_type) -> Dict:
         """
         Constructs a Data Transfer Object (DTO) from the provided zones_result.
-
+    
         Parameters:
             zones_result (dict): The dictionary containing processed zones from prepare_zones.
             current_market_price (float): The current market price for determining the target.
-
+            data_type (any): Can be any identifier for the type of data.
+    
         Returns:
             dict: A DTO with:
-                  - "3mo_demand_zone": Comma-separated "proximal-distal" strings (e.g., "130.00-120.00,125.00-115.00"),
-                  - "1mo_demand_zone": Comma-separated "proximal-distal" strings,
-                  - "entries": List of dictionaries with "entry" and "stoploss",
+                  - "3mo_demand_zone": The nearest single "proximal-distal" string (e.g., "130.00-120.00"),
+                  - "1mo_demand_zone": The nearest single "proximal-distal" string,
+                  - "entries": List of dictionaries with "entry" and "stoploss", but only if the daily zone 
+                    is within either the 1mo or 3mo demand zone ranges,
                   - "target": Target price (float).
         """
-
+    
         # DTO structure to be returned
         dto = {
             "data_type": data_type,
@@ -590,50 +593,65 @@ class GPTClient:
             "entries": [],
             "target": None
         }
-        
-        # 1) Find the two closest 3mo Demand Zones
+    
+        # 1) Find the closest (only one) 3mo Demand Zone
         three_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
-        closest_three_mo_zones = self._get_closest_zones(three_mo_zones, current_market_price, top_n=2)
-        if closest_three_mo_zones:
-            formatted_zones = []
-            for zone in closest_three_mo_zones:
-                proximal = zone.get("proximal")
-                distal = zone.get("distal")
-                if proximal is not None and distal is not None:
-                    try:
-                        proximal = float(proximal)
-                        distal = float(distal)
-                        formatted_zones.append(f"{proximal:.2f}-{distal:.2f}")
-                    except (TypeError, ValueError) as e:
-                        logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
-                else:
-                    logging.warning("3mo Demand Zone found but proximal or distal is missing.")
-            dto["3mo_demand_zone"] = ",".join(formatted_zones)
+        closest_three_mo_zones = self._get_closest_zones(three_mo_zones, current_market_price, top_n=1)
+        single_three_mo_zone = closest_three_mo_zones[0] if closest_three_mo_zones else None
+    
+        if single_three_mo_zone:
+            proximal = single_three_mo_zone.get("proximal")
+            distal = single_three_mo_zone.get("distal")
+            if proximal is not None and distal is not None:
+                try:
+                    proximal = float(proximal)
+                    distal = float(distal)
+                    dto["3mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                except (TypeError, ValueError) as e:
+                    logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
+            else:
+                logging.warning("3mo Demand Zone found but proximal or distal is missing.")
         else:
             logging.warning("No 3mo Demand Zones found.")
-        
-        # 2) Find the two closest 1mo Demand Zones
+    
+        # 2) Find the closest (only one) 1mo Demand Zone
         one_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
-        closest_one_mo_zones = self._get_closest_zones(one_mo_zones, current_market_price, top_n=2)
-        if closest_one_mo_zones:
-            formatted_zones = []
-            for zone in closest_one_mo_zones:
-                proximal = zone.get("proximal")
-                distal = zone.get("distal")
-                if proximal is not None and distal is not None:
-                    try:
-                        proximal = float(proximal)
-                        distal = float(distal)
-                        formatted_zones.append(f"{proximal:.2f}-{distal:.2f}")
-                    except (TypeError, ValueError) as e:
-                        logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
-                else:
-                    logging.warning("1mo Demand Zone found but proximal or distal is missing.")
-            dto["1mo_demand_zone"] = ",".join(formatted_zones)
+        closest_one_mo_zones = self._get_closest_zones(one_mo_zones, current_market_price, top_n=1)
+        single_one_mo_zone = closest_one_mo_zones[0] if closest_one_mo_zones else None
+    
+        if single_one_mo_zone:
+            proximal = single_one_mo_zone.get("proximal")
+            distal = single_one_mo_zone.get("distal")
+            if proximal is not None and distal is not None:
+                try:
+                    proximal = float(proximal)
+                    distal = float(distal)
+                    dto["1mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                except (TypeError, ValueError) as e:
+                    logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
+            else:
+                logging.warning("1mo Demand Zone found but proximal or distal is missing.")
         else:
             logging.warning("No 1mo Demand Zones found.")
-        
-        # 3) Collect entries from the 1d Demand Zones
+    
+        # Convert single 3mo and 1mo zone boundaries to floats if they exist (for comparison with daily zones)
+        three_mo_prox, three_mo_dist = None, None
+        if single_three_mo_zone:
+            try:
+                three_mo_prox = float(single_three_mo_zone["proximal"])
+                three_mo_dist = float(single_three_mo_zone["distal"])
+            except (TypeError, ValueError, KeyError):
+                pass
+            
+        one_mo_prox, one_mo_dist = None, None
+        if single_one_mo_zone:
+            try:
+                one_mo_prox = float(single_one_mo_zone["proximal"])
+                one_mo_dist = float(single_one_mo_zone["distal"])
+            except (TypeError, ValueError, KeyError):
+                pass
+            
+        # 3) Collect entries from the 1d Demand Zones, but only if they lie within either the single 1mo or 3mo demand zone
         daily_zones = zones_result.get("1d", [])
         for dz in daily_zones:
             if dz.get("zoneType") == "Demand":
@@ -641,24 +659,39 @@ class GPTClient:
                 stop_loss = dz.get("distal")
                 if entry_price is not None and stop_loss is not None:
                     try:
-                        # Ensure entry_price and stop_loss are floats and round to two decimals
-                        entry_price = float(entry_price)
-                        stop_loss = float(stop_loss)
-                        dto["entries"].append({
-                            "entry": round(entry_price, 2),
-                            "stoploss": round(stop_loss, 2)
-                        })
+                        # Ensure entry_price and stop_loss are floats
+                        entry_price_f = float(entry_price)
+                        stop_loss_f = float(stop_loss)
+    
+                        # Check if the daily zone is within the 3mo or 1mo zone range
+                        # For a demand zone, the "distal" is the lower boundary, and "proximal" is the upper boundary.
+                        # "Within range" => daily zone must be entirely between the distal and proximal of the chosen zone.
+                        in_three_mo = (
+                            three_mo_prox is not None and three_mo_dist is not None and 
+                            (three_mo_dist <= stop_loss_f) and (entry_price_f <= three_mo_prox)
+                        )
+                        in_one_mo = (
+                            one_mo_prox is not None and one_mo_dist is not None and 
+                            (one_mo_dist <= stop_loss_f) and (entry_price_f <= one_mo_prox)
+                        )
+    
+                        # Add only if in either the 1mo or 3mo demand zone
+                        if in_three_mo or in_one_mo:
+                            dto["entries"].append({
+                                "entry": round(entry_price_f, 2),
+                                "stoploss": round(stop_loss_f, 2)
+                            })
                     except (TypeError, ValueError) as e:
                         logging.error(f"Error converting entry_price/stop_loss to float in entries: {e}")
                 else:
                     logging.warning("Daily Demand Zone found but entry_price or stop_loss is missing.")
-        
-        # 4) Determine the target from the nearest Supply Zone
+    
+        # 4) Determine the target from the nearest Supply Zone (either 1mo or 3mo)
         supply_candidates = [
             z for z in zones_result.get("1mo", [])
             if z.get("zoneType") == "Supply" and z.get("interval") in ("1mo", "3mo")
         ]
-
+    
         if supply_candidates:
             try:
                 # Pick the zone with proximal closest to current_market_price
@@ -676,32 +709,32 @@ class GPTClient:
                 logging.error(f"Error determining target from Supply Zones: {e}")
         else:
             logging.warning("No Supply Zones found with intervals '1mo' or '3mo'.")
-
+    
         return dto
-
+    
     def _get_zones(self, zones: List[Dict], zone_type: str, interval: str) -> List[Dict]:
         """
         Returns all zones from 'zones' matching zone_type and interval.
-
+    
         Parameters:
             zones (list): List of zone dictionaries.
             zone_type (str): The type of zone to search for ('Demand' or 'Supply').
             interval (str): The interval of the zone ('1mo', '3mo', etc.).
-
+    
         Returns:
             list: A list of matching zone dictionaries.
         """
         return [z for z in zones if z.get("zoneType") == zone_type and z.get("interval") == interval]
-
+    
     def _get_closest_zones(self, zones: List[Dict], current_market_price: float, top_n: int = 2) -> List[Dict]:
         """
         Returns the top_n zones with proximal prices closest to the current_market_price.
-
+    
         Parameters:
             zones (list): List of zone dictionaries.
             current_market_price (float): The current market price.
             top_n (int): Number of closest zones to retrieve.
-
+    
         Returns:
             list: A list of the top_n closest zone dictionaries.
         """
