@@ -34,7 +34,7 @@ class GPTClient:
                     "3. If 'entries' are provided, suggest multiple entry points within the buying range, each with a corresponding stop-loss. "
                     "Use varied language for each response. Example format:\n"
                     "   **Example Response:**\n"
-                    "   This is a great stock pick, I see a potential buying range of this stock ranging from 130.00-120.00. "
+                    "   This is a great stock pick, I see a potential **{trade_score} out of 6** trade with a buying range of this stock ranging from 130.00-120.00. "
                     "In this range, I feel the best entry points are 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). "
                     "The target can be set to 180.27. Happy investing!\n"
                     "4. If 'entries' are empty, respond with one of the following variations without mentioning the target price:\n"
@@ -318,8 +318,9 @@ class GPTClient:
                     
                 # Append the valid daily zone to the result
                 logging.debug(f"Adding daily zone to result: {daily_zone}")
+        
                 result["1d"].append(daily_zone)
-
+        logging.debug("Near weekly DZ method")
         # Handle weekly demand zones if daily zones are absent
         self.addWeeklyDzIfDailyAreAbsent(current_market_price, wk_demand_zones, filtered_monthly, result)
 
@@ -507,6 +508,8 @@ class GPTClient:
 
                         # Append the valid weekly zone to the result
                         result.setdefault("1d", []).append(wk_zone)
+                        
+            logging.debug("Exiting weekly DZ method")
 
             return result
 
@@ -522,150 +525,253 @@ class GPTClient:
         Returns:
         - dict: The modified result with only the nearest supply zone retained.
         """
-        if current_market_price is None:
-            # If there's no current market price, return the result unchanged
-            return result
+        try:
+            logging.debug("Entering retain_nearest_supply_zone")
+            logging.debug(f"Initial result: {result}")
+            logging.debug(f"Current Market Price: {current_market_price}")
 
-        nearest_supply_zone = None
-        min_distance = float('inf')
+            if current_market_price is None:
+                logging.warning("current_market_price is None. Returning result unchanged.")
+                return result
 
-        # Iterate through all intervals and zones to find the nearest supply zone
-        for interval, zones in result.items():
-            # Skip current_market_price if stored in result
-            if interval == 'current_market_price':
-                continue
-
-            if not isinstance(zones, list):
-                continue
-
-            for zone in zones:
-                if zone.get('zoneType') == 'Supply':
-                    proximal = zone.get('proximal')
-                    if proximal is not None:
-                        try:
-                            distance = abs(float(proximal) - float(current_market_price))
-                        except (TypeError, ValueError):
-                            continue
-                        if distance < min_distance:
-                            min_distance = distance
-                            nearest_supply_zone = zone
-
-        if nearest_supply_zone:
-            # Iterate again to remove all supply zones except the nearest one
+            # Collect all zone_ids to check uniqueness
+            all_zone_ids = []
             for interval, zones in result.items():
                 if interval == 'current_market_price':
                     continue
-                if not isinstance(zones, list):
+                if isinstance(zones, list):
+                    for zone in zones:
+                        if isinstance(zone, dict):
+                            zone_id = zone.get('zone_id')
+                            if zone_id is not None:
+                                all_zone_ids.append(zone_id)
+            unique_zone_ids = set(all_zone_ids)
+            is_zone_id_unique = len(all_zone_ids) == len(unique_zone_ids)
+            logging.debug(f"Zone ID uniqueness: {is_zone_id_unique} (Unique Zone IDs: {unique_zone_ids})")
+
+            # Iterate through each top-level interval (e.g., '1mo', '1d')
+            for top_interval, zones in result.items():
+                logging.debug(f"Processing top-level interval: '{top_interval}' with zones: {zones}")
+                logging.debug(f"Type of zones for interval '{top_interval}': {type(zones)}")
+
+                # Skip 'current_market_price' if it's stored in result
+                if top_interval == 'current_market_price':
+                    logging.debug(f"Skipping top-level interval '{top_interval}' as it is 'current_market_price'")
                     continue
 
-                # Use list comprehension to filter zones
-                result[interval] = [
-                    z for z in zones
-                    if z.get('zoneType') != 'Supply' or z == nearest_supply_zone
-                ]
+                if not isinstance(zones, list):
+                    logging.error(f"Expected list of zones for top-level interval '{top_interval}', got {type(zones)}. Skipping.")
+                    continue
 
-        return result
-    
-    
+                # Group zones by their 'interval' field (sub-intervals)
+                sub_interval_groups = {}
+                for idx, zone in enumerate(zones):
+                    logging.debug(f"Processing zone {idx} in top-level interval '{top_interval}': {zone}")
+                    logging.debug(f"Type of zone: {type(zone)}")
+
+                    if not isinstance(zone, dict):
+                        logging.error(f"Expected zone to be a dict, got {type(zone)}. Skipping this zone.")
+                        continue
+
+                    zone_type = zone.get('zoneType')
+                    sub_interval = zone.get('interval')
+
+                    logging.debug(f"zoneType: {zone_type}, interval: {sub_interval}")
+
+                    if zone_type != 'Supply':
+                        logging.debug(f"Zone is not a Supply zone (zoneType='{zone_type}'). Skipping.")
+                        continue
+
+                    if sub_interval is None:
+                        logging.warning(f"Supply zone missing 'interval' value: {zone}. Skipping.")
+                        continue
+
+                    if sub_interval not in sub_interval_groups:
+                        sub_interval_groups[sub_interval] = []
+                    sub_interval_groups[sub_interval].append(zone)
+
+                logging.debug(f"Grouped Supply zones in top-level interval '{top_interval}' by sub-interval: {sub_interval_groups}")
+
+                # Find the nearest Supply zone per sub-interval
+                nearest_zones_per_sub_interval = {}
+                for sub_interval, supply_zones in sub_interval_groups.items():
+                    nearest_zone = None
+                    min_distance_sub = float('inf')
+                    logging.debug(f"Finding nearest Supply zone in sub-interval '{sub_interval}' with supply_zones: {supply_zones}")
+
+                    for zone in supply_zones:
+                        proximal = zone.get('proximal')
+                        distal = zone.get('distal')
+                        logging.debug(f"Evaluating Supply zone: proximal={proximal} (type: {type(proximal)}), distal={distal} (type: {type(distal)})")
+
+                        if proximal is None or distal is None:
+                            logging.warning(f"Supply zone missing 'proximal' or 'distal': {zone}. Skipping.")
+                            continue
+
+                        try:
+                            proximal_float = float(proximal)
+                            current_price_float = float(current_market_price)
+                            distance = abs(proximal_float - current_price_float)
+                            logging.debug(f"Calculated distance: {distance} between proximal {proximal_float} and current_market_price {current_price_float}")
+                        except (TypeError, ValueError) as e:
+                            logging.error(f"Error converting proximal or current_market_price to float: {e}. Skipping this zone.")
+                            continue
+
+                        if distance < min_distance_sub:
+                            logging.debug(f"New nearest Supply zone in sub-interval '{sub_interval}': {zone} with distance {distance}")
+                            min_distance_sub = distance
+                            nearest_zone = zone
+
+                    if nearest_zone:
+                        nearest_zones_per_sub_interval[sub_interval] = nearest_zone
+                        logging.debug(f"Nearest Supply zone in sub-interval '{sub_interval}': {nearest_zone} with distance {min_distance_sub}")
+                    else:
+                        logging.warning(f"No valid Supply zones found in sub-interval '{sub_interval}' within top-level interval '{top_interval}'.")
+
+                # Retain only the nearest Supply zones per sub-interval
+                for sub_interval, nearest_zone in nearest_zones_per_sub_interval.items():
+                    logging.debug(f"Retaining nearest Supply zone for sub-interval '{sub_interval}': {nearest_zone}")
+
+                # Create a new list of zones, keeping only the nearest Supply zones per sub-interval
+                filtered_zones = list(nearest_zones_per_sub_interval.values())
+
+                # Additionally, retain all non-Supply zones unchanged
+                non_supply_zones = [z for z in zones if z.get('zoneType') != 'Supply']
+                logging.debug(f"Non-Supply zones in top-level interval '{top_interval}': {non_supply_zones}")
+
+                # Combine the nearest Supply zones and non-Supply zones
+                try:
+                    result[top_interval] = filtered_zones + non_supply_zones
+                    logging.debug(f"Filtered zones for top-level interval '{top_interval}': {result[top_interval]}")
+                except Exception as e:
+                    logging.error(f"Error assigning filtered zones for top-level interval '{top_interval}': {e}")
+                    logging.error(traceback.format_exc())
+
+            logging.debug(f"Final result after retaining nearest Supply zones: {result}")
+            logging.debug("Exiting retain_nearest_supply_zone")
+
+            return result
+
+        except Exception as e:
+            logging.error(f"Error processing request: {e}")
+            logging.error(traceback.format_exc())
+            return result  # Or handle appropriately
+
+
     def build_zones_dto(self, zones_result: Dict[str, List[Dict]], current_market_price: float, data_type) -> Dict:
         """
         Constructs a Data Transfer Object (DTO) from the provided zones_result.
-    
-        Parameters:
-            zones_result (dict): The dictionary containing processed zones from prepare_zones.
-            current_market_price (float): The current market price for determining the target.
-            data_type (any): Can be any identifier for the type of data.
-    
-        Returns:
-            dict: A DTO with:
-                  - "3mo_demand_zone": The nearest single "proximal-distal" string (e.g., "130.00-120.00"),
-                  - "1mo_demand_zone": The nearest single "proximal-distal" string,
-                  - "entries": List of dictionaries with "entry" and "stoploss", but only if the daily zone 
-                    is within either the 1mo or 3mo demand zone ranges,
-                  - "target": Target price (float).
         """
-    
+        logging.debug("Entering build_zones_dto")
+        logging.debug(f"zones_result: {zones_result}")
+        logging.debug(f"current_market_price: {current_market_price}")
+        logging.debug(f"data_type: {data_type}")
+
         # DTO structure to be returned
         dto = {
             "data_type": data_type,
             "3mo_demand_zone": None,
             "1mo_demand_zone": None,
             "entries": [],
-            "target": None
+            "target": None,
+            "trade_score": 0
         }
-    
+
         # 1) Find the closest (only one) 3mo Demand Zone
         three_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="3mo")
+        logging.debug(f"three_mo_zones: {three_mo_zones}")
         closest_three_mo_zones = self._get_closest_zones(three_mo_zones, current_market_price, top_n=1)
+        logging.debug(f"closest_three_mo_zones: {closest_three_mo_zones}")
         single_three_mo_zone = closest_three_mo_zones[0] if closest_three_mo_zones else None
-    
+
         if single_three_mo_zone:
             proximal = single_three_mo_zone.get("proximal")
             distal = single_three_mo_zone.get("distal")
+            logging.debug(f"3mo Demand Zone - proximal: {proximal}, distal: {distal}")
+
             if proximal is not None and distal is not None:
-                try:
-                    proximal = float(proximal)
-                    distal = float(distal)
-                    dto["3mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
-                except (TypeError, ValueError) as e:
-                    logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
+                if not isinstance(proximal, (float, int)) or not isinstance(distal, (float, int)):
+                    logging.error(f"proximal or distal is not a scalar: proximal={proximal} (type: {type(proximal)}), distal={distal} (type: {type(distal)})")
+                else:
+                    try:
+                        proximal = float(proximal)
+                        distal = float(distal)
+                        dto["3mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                        logging.debug(f"Set 3mo_demand_zone: {dto['3mo_demand_zone']}")
+                    except (TypeError, ValueError) as e:
+                        logging.error(f"Error converting proximal/distal to float for 3mo Demand Zone: {e}")
             else:
                 logging.warning("3mo Demand Zone found but proximal or distal is missing.")
         else:
             logging.warning("No 3mo Demand Zones found.")
-    
+
         # 2) Find the closest (only one) 1mo Demand Zone
         one_mo_zones = self._get_zones(zones_result.get("1mo", []), zone_type="Demand", interval="1mo")
+        logging.debug(f"one_mo_zones: {one_mo_zones}")
         closest_one_mo_zones = self._get_closest_zones(one_mo_zones, current_market_price, top_n=1)
+        logging.debug(f"closest_one_mo_zones: {closest_one_mo_zones}")
         single_one_mo_zone = closest_one_mo_zones[0] if closest_one_mo_zones else None
-    
+
         if single_one_mo_zone:
             proximal = single_one_mo_zone.get("proximal")
             distal = single_one_mo_zone.get("distal")
+            logging.debug(f"1mo Demand Zone - proximal: {proximal}, distal: {distal}")
+
             if proximal is not None and distal is not None:
-                try:
-                    proximal = float(proximal)
-                    distal = float(distal)
-                    dto["1mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
-                except (TypeError, ValueError) as e:
-                    logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
+                if not isinstance(proximal, (float, int)) or not isinstance(distal, (float, int)):
+                    logging.error(f"proximal or distal is not a scalar: proximal={proximal} (type: {type(proximal)}), distal={distal} (type: {type(distal)})")
+                else:
+                    try:
+                        proximal = float(proximal)
+                        distal = float(distal)
+                        dto["1mo_demand_zone"] = f"{proximal:.2f}-{distal:.2f}"
+                        logging.debug(f"Set 1mo_demand_zone: {dto['1mo_demand_zone']}")
+                    except (TypeError, ValueError) as e:
+                        logging.error(f"Error converting proximal/distal to float for 1mo Demand Zone: {e}")
             else:
                 logging.warning("1mo Demand Zone found but proximal or distal is missing.")
         else:
             logging.warning("No 1mo Demand Zones found.")
-    
+
         # Convert single 3mo and 1mo zone boundaries to floats if they exist (for comparison with daily zones)
         three_mo_prox, three_mo_dist = None, None
         if single_three_mo_zone:
             try:
                 three_mo_prox = float(single_three_mo_zone["proximal"])
                 three_mo_dist = float(single_three_mo_zone["distal"])
-            except (TypeError, ValueError, KeyError):
-                pass
-            
+                logging.debug(f"three_mo_prox: {three_mo_prox}, three_mo_dist: {three_mo_dist}")
+            except (TypeError, ValueError, KeyError) as e:
+                logging.error(f"Error converting 3mo proximal/distal to float: {e}")
+
         one_mo_prox, one_mo_dist = None, None
         if single_one_mo_zone:
             try:
                 one_mo_prox = float(single_one_mo_zone["proximal"])
                 one_mo_dist = float(single_one_mo_zone["distal"])
-            except (TypeError, ValueError, KeyError):
-                pass
-            
+                logging.debug(f"one_mo_prox: {one_mo_prox}, one_mo_dist: {one_mo_dist}")
+            except (TypeError, ValueError, KeyError) as e:
+                logging.error(f"Error converting 1mo proximal/distal to float: {e}")
+
         # 3) Collect entries from the 1d Demand Zones, but only if they lie within either the single 1mo or 3mo demand zone
         daily_zones = zones_result.get("1d", [])
+        logging.debug(f"daily_zones: {daily_zones}")
         for dz in daily_zones:
             if dz.get("zoneType") == "Demand":
                 entry_price = dz.get("proximal")
                 stop_loss = dz.get("distal")
+                logging.debug(f"Processing Daily Demand Zone - entry_price: {entry_price}, stop_loss: {stop_loss}")
+
                 if entry_price is not None and stop_loss is not None:
+                    if not isinstance(entry_price, (float, int)) or not isinstance(stop_loss, (float, int)):
+                        logging.error(f"entry_price or stop_loss is not a scalar: entry_price={entry_price} (type: {type(entry_price)}), stop_loss={stop_loss} (type: {type(stop_loss)})")
+                        continue
                     try:
                         # Ensure entry_price and stop_loss are floats
                         entry_price_f = float(entry_price)
                         stop_loss_f = float(stop_loss)
-    
+                        logging.debug(f"Converted entry_price_f: {entry_price_f}, stop_loss_f: {stop_loss_f}")
+
                         # Check if the daily zone is within the 3mo or 1mo zone range
-                        # For a demand zone, the "distal" is the lower boundary, and "proximal" is the upper boundary.
-                        # "Within range" => daily zone must be entirely between the distal and proximal of the chosen zone.
                         in_three_mo = (
                             three_mo_prox is not None and three_mo_dist is not None and 
                             (three_mo_dist <= stop_loss_f) and (entry_price_f <= three_mo_prox)
@@ -674,24 +780,27 @@ class GPTClient:
                             one_mo_prox is not None and one_mo_dist is not None and 
                             (one_mo_dist <= stop_loss_f) and (entry_price_f <= one_mo_prox)
                         )
-    
+                        logging.debug(f"in_three_mo: {in_three_mo}, in_one_mo: {in_one_mo}")
+
                         # Add only if in either the 1mo or 3mo demand zone
                         if in_three_mo or in_one_mo:
                             dto["entries"].append({
                                 "entry": round(entry_price_f, 2),
                                 "stoploss": round(stop_loss_f, 2)
                             })
+                            logging.debug(f"Added entry: {{'entry': {entry_price_f}, 'stoploss': {stop_loss_f}}}")
                     except (TypeError, ValueError) as e:
                         logging.error(f"Error converting entry_price/stop_loss to float in entries: {e}")
                 else:
                     logging.warning("Daily Demand Zone found but entry_price or stop_loss is missing.")
-    
+
         # 4) Determine the target from the nearest Supply Zone (either 1mo or 3mo)
         supply_candidates = [
             z for z in zones_result.get("1mo", [])
             if z.get("zoneType") == "Supply" and z.get("interval") in ("1mo", "3mo")
         ]
-    
+        logging.debug(f"supply_candidates: {supply_candidates}")
+
         if supply_candidates:
             try:
                 # Pick the zone with proximal closest to current_market_price
@@ -700,47 +809,86 @@ class GPTClient:
                     key=lambda z: abs(float(z.get("proximal", math.inf)) - current_market_price)
                 )
                 proximal = target_zone.get("proximal")
+                logging.debug(f"Selected target_zone: {target_zone}")
                 if proximal is not None:
                     proximal = float(proximal)
                     dto["target"] = round(proximal, 2)
+                    logging.debug(f"Set target: {dto['target']}")
                 else:
                     logging.warning("Supply Zone found but proximal is missing.")
             except (TypeError, ValueError) as e:
                 logging.error(f"Error determining target from Supply Zones: {e}")
         else:
             logging.warning("No Supply Zones found with intervals '1mo' or '3mo'.")
-    
+
+        # 5) Calculate trade score
+        trade_score = 0
+        if single_three_mo_zone:  # 3mo zone exists
+            trade_score += 2
+            logging.debug("Trade score incremented by 2 for existing 3mo Demand Zone.")
+        if single_one_mo_zone:    # 1mo zone exists
+            trade_score += 1
+            logging.debug("Trade score incremented by 1 for existing 1mo Demand Zone.")
+        if len(dto["entries"]) > 0:  # At least one entry
+            trade_score += 1
+            logging.debug(f"Trade score incremented by 1 for {len(dto['entries'])} entry(ies).")
+        dto["trade_score"] = trade_score
+        logging.debug(f"Calculated trade_score: {trade_score}")
+
+        logging.debug(f"Final DTO: {dto}")
+        logging.debug("Exiting build_zones_dto")
         return dto
-    
+
     def _get_zones(self, zones: List[Dict], zone_type: str, interval: str) -> List[Dict]:
         """
         Returns all zones from 'zones' matching zone_type and interval.
-    
+
         Parameters:
             zones (list): List of zone dictionaries.
             zone_type (str): The type of zone to search for ('Demand' or 'Supply').
             interval (str): The interval of the zone ('1mo', '3mo', etc.).
-    
+
         Returns:
             list: A list of matching zone dictionaries.
         """
-        return [z for z in zones if z.get("zoneType") == zone_type and z.get("interval") == interval]
-    
+        logging.debug(f"Entering _get_zones with zone_type='{zone_type}' and interval='{interval}'")
+        matching_zones = [z for z in zones if z.get("zoneType") == zone_type and z.get("interval") == interval]
+        logging.debug(f"Found {len(matching_zones)} zones matching zone_type='{zone_type}' and interval='{interval}': {matching_zones}")
+        return matching_zones
+
     def _get_closest_zones(self, zones: List[Dict], current_market_price: float, top_n: int = 2) -> List[Dict]:
         """
         Returns the top_n zones with proximal prices closest to the current_market_price.
-    
+
         Parameters:
             zones (list): List of zone dictionaries.
             current_market_price (float): The current market price.
             top_n (int): Number of closest zones to retrieve.
-    
+
         Returns:
             list: A list of the top_n closest zone dictionaries.
         """
-        # Filter out zones without 'proximal'
-        valid_zones = [z for z in zones if z.get("proximal") is not None]
-        # Sort zones based on the absolute difference between proximal and current_market_price
-        sorted_zones = sorted(valid_zones, key=lambda z: abs(float(z["proximal"]) - current_market_price))
-        # Return the top_n closest zones
-        return sorted_zones[:top_n]
+        logging.debug(f"Entering _get_closest_zones with current_market_price={current_market_price} and top_n={top_n}")
+        valid_zones = []
+        for z in zones:
+            proximal = z.get("proximal")
+            if proximal is not None:
+                if isinstance(proximal, (float, int)):
+                    valid_zones.append(z)
+                else:
+                    logging.error(f"proximal is not a scalar in zone: {z}")
+            else:
+                logging.warning(f"Zone missing 'proximal': {z}")
+
+        logging.debug(f"Valid zones for closest calculation: {valid_zones}")
+
+        try:
+            sorted_zones = sorted(valid_zones, key=lambda z: abs(float(z["proximal"]) - current_market_price))
+            logging.debug(f"sorted_zones: {sorted_zones}")
+        except Exception as e:
+            logging.error(f"Error sorting zones: {e}")
+            return []
+
+        closest_zones = sorted_zones[:top_n]
+        logging.debug(f"closest_zones (top {top_n}): {closest_zones}")
+        return closest_zones

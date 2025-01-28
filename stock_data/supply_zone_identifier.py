@@ -273,7 +273,7 @@ class SupplyZoneIdentifier:
             if stock_data.iloc[k]['ExcitingCandle'] and stock_data.iloc[k]['Close'] < stock_data.iloc[k]['Open']:
                 score += 1
             elif stock_data.iloc[k].get('GapDown', False):
-                score += 2
+                score += 1
             else:
                 break
             k += 1
