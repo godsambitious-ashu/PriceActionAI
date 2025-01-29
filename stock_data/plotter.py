@@ -55,7 +55,7 @@ class Plotter:
                 font_size=12,
                 font_family="Arial"
             ),
-            dragmode='zoom',
+            dragmode='zoom',  # Enables zooming by dragging
             xaxis=dict(
                 showspikes=True,
                 spikemode='across',
@@ -67,9 +67,11 @@ class Plotter:
                 showgrid=False,
                 tickformat='%Y-%m-%d',
                 tickfont=dict(color='black'),
-                title_font=dict(color='black')
+                title_font=dict(color='black'),
+                rangeslider=dict(
+                    visible=False  # Hide the range slider
+                )
             ),
-# Update yaxis configuration in your Plotter class
             yaxis=dict(
                 side='right',
                 showspikes=True,
@@ -83,7 +85,7 @@ class Plotter:
                 tickformat='.2f',
                 tickfont=dict(color='black'),
                 title_font=dict(color='black'),
-                fixedrange=True  # Important for accurate mouse position calculation
+                fixedrange=False  # Allow vertical zooming
             ),
             xaxis_rangeslider_visible=False,
             autosize=True,
@@ -91,7 +93,36 @@ class Plotter:
             width=1600,
             margin=dict(l=50, r=50, t=50, b=50),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            modebar=dict(
+                orientation='h',  # Horizontal modebar
+                bgcolor='rgba(0,0,0,0)',  # Transparent background
+                color='black',  # Icon color
+                activecolor='blue',  # Active icon color
+                # Include desired modebar buttons
+                add=['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect'],
+                remove=['select2d', 'lasso2d']  # Remove unwanted buttons
+            )
+        )
+
+        # Add Range Selector buttons for quick zooming
+        fig.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(count=6, label="6m", step="month", stepmode="backward"),
+                        dict(count=1, label="YTD", step="year", stepmode="todate"),
+                        dict(count=1, label="1y", step="year", stepmode="backward"),
+                        dict(step="all")
+                    ]),
+                    x=0.1,
+                    y=1.15,
+                    bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='black')
+                ),
+                rangeslider=dict(visible=False)
+            )
         )
 
         logging.debug("Candlestick chart created successfully with EMA20 and price tracking")
