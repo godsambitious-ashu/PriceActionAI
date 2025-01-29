@@ -68,6 +68,7 @@ class Plotter:
                 tickformat='%Y-%m-%d',
                 tickfont=dict(color='black'),
                 title_font=dict(color='black'),
+                fixedrange=False,  # Allow horizontal zooming
                 rangeslider=dict(
                     visible=False  # Hide the range slider
                 )
@@ -99,31 +100,14 @@ class Plotter:
                 bgcolor='rgba(0,0,0,0)',  # Transparent background
                 color='black',  # Icon color
                 activecolor='blue',  # Active icon color
-                # Include desired modebar buttons
-                add=['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect'],
-                remove=['select2d', 'lasso2d']  # Remove unwanted buttons
+                # No custom buttons added
             )
         )
 
-        # Add Range Selector buttons for quick zooming
-        fig.update_layout(
-            xaxis=dict(
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1m", step="month", stepmode="backward"),
-                        dict(count=6, label="6m", step="month", stepmode="backward"),
-                        dict(count=1, label="YTD", step="year", stepmode="todate"),
-                        dict(count=1, label="1y", step="year", stepmode="backward"),
-                        dict(step="all")
-                    ]),
-                    x=0.1,
-                    y=1.15,
-                    bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='black')
-                ),
-                rangeslider=dict(visible=False)
-            )
-        )
+        logging.debug("Configured layout without custom buttons")
+
+        # Remove Range Selector buttons by not adding them
+        # Ensure no updatemenus or range selectors are present
 
         logging.debug("Candlestick chart created successfully with EMA20 and price tracking")
         return fig
