@@ -6,8 +6,16 @@
 {% endblock %}
 
 {% block head %}
-  <!-- Load your global CSS here (e.g., index.css) -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+  <!-- Load your global CSS here (e.g., styles.css) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <!-- Include Font Awesome for Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-pK3C3v5rrFw5qc8PbWdH0AWI3oQ6K/HjlTrJL+3WXpsrH3sO0x+CMa9N5y4L2cG30uLrQyJ3Zt3sE4P8e4eFgw=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
 {% endblock %}
 
 {% block gpt_section %}
@@ -85,14 +93,12 @@
           </div>
         {% endif %}
       </div>
-      <!-- Removed the old "Stock / Index Buttons" from here -->
     </div>
 
     <!-- Stock Charts Section -->
     <div id="stock_section">
       {% if charts %}
         <div class="charts-section">
-          <!-- Unified row: Stock/Index toggle (left) + "Candlestick Charts - Stock" + Stock intervals -->
           <div class="d-flex align-items-center justify-content-start gap-3 flex-wrap mb-2">
             <!-- Stock/Index Toggle Buttons -->
             <div class="button-panel mb-0">
@@ -152,6 +158,8 @@
             <div class="chart-container mb-2"
                  id="chart_container_stock_{{ interval }}"
                  {% if interval != '1d' %}style="display:none;"{% endif %}>
+              <!-- Price Label Container -->
+              <div class="chart-price-label" id="price_label_stock_{{ interval }}"></div>
               
               <!-- Fullscreen + Fresh Zones on the same line -->
               <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
@@ -175,9 +183,11 @@
                 </div>
               </div>
 
+              <!-- Plotly HTML for this chart (All Zones) -->
               <div id="chart_all_zones_stock_{{ interval }}">
                 {{ chart_data.all_zones | safe }}
               </div>
+              <!-- Plotly HTML for this chart (Fresh Zones) -->
               <div id="chart_fresh_zones_stock_{{ interval }}" style="display:none;">
                 {{ chart_data.fresh_zones | safe }}
               </div>
@@ -191,7 +201,6 @@
     {% if index_charts %}
       <div id="index_section" style="display:none;">
         <div class="charts-section">
-          <!-- Unified row: Stock/Index toggle (left) + "Candlestick Charts - Index" + Index intervals -->
           <div class="d-flex align-items-center justify-content-start gap-3 flex-wrap mb-2">
             <!-- Stock/Index Toggle Buttons -->
             <div class="button-panel mb-0">
@@ -241,6 +250,8 @@
             <div class="chart-container mb-2"
                  id="chart_container_index_{{ interval }}"
                  {% if interval != '1d' %}style="display:none;"{% endif %}>
+              <!-- Price Label Container -->
+              <div class="chart-price-label" id="price_label_index_{{ interval }}"></div>
               
               <!-- Fullscreen + Fresh Zones on the same line -->
               <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
@@ -264,9 +275,11 @@
                 </div>
               </div>
 
+              <!-- Plotly HTML for this chart (All Zones) -->
               <div id="chart_all_zones_index_{{ interval }}">
                 {{ chart_data.all_zones | safe }}
               </div>
+              <!-- Plotly HTML for this chart (Fresh Zones) -->
               <div id="chart_fresh_zones_index_{{ interval }}" style="display:none;">
                 {{ chart_data.fresh_zones | safe }}
               </div>
@@ -315,7 +328,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateChatDisplay(userMsg, gptMsg) {
     const chatDisplay = document.getElementById('chatDisplay');
     if (chatDisplay) {
-      // Append new messages instead of overriding
       chatDisplay.innerHTML += `
         <div class="chat-message user">
           <div class="message"><strong>You:</strong> ${userMsg}</div>
@@ -324,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="message"><strong>GPT:</strong> ${gptMsg}</div>
         </div>
       `;
-      chatDisplay.scrollTop = chatDisplay.scrollHeight; // Auto-scroll to bottom
+      chatDisplay.scrollTop = chatDisplay.scrollHeight;
     }
   }
 
@@ -332,13 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
   window.toggleFullscreen = function(elementId) {
     const chartContainer = document.getElementById(elementId);
     if (!document.fullscreenElement) {
-      chartContainer.requestFullscreen().then(() => {
-        // After entering fullscreen, force canvas background white
-        const canvases = chartContainer.getElementsByTagName('canvas');
-        for (const canvas of canvases) {
-          canvas.style.backgroundColor = 'white';
-        }
-      }).catch(err => {
+      chartContainer.requestFullscreen().catch(err => {
         alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
       });
     } else {
@@ -361,13 +367,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // Show/Hide Data Type Sections (Stock vs. Index)
+  // Show/Hide Data Type Sections
   window.showData = function(dataType) {
     const stockSection = document.getElementById('stock_section');
     const indexSection = document.getElementById('index_section');
     if (!stockSection || !indexSection) return;
 
-    // Toggle visibility
     if (dataType === 'stock') {
       stockSection.style.display = 'block';
       indexSection.style.display = 'none';
@@ -377,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // Show/Hide Charts Based on Selected Interval
+  // Show/Hide Charts Based on Interval
   window.showChart = function(dataType, selectedInterval) {
     const intervals = ['1d', '1wk', '1mo', '3mo'];
     intervals.forEach(function(interval) {
@@ -395,7 +400,80 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // Initialize - Show the Stock section, hide Index by default
+  // ========== PRICE LABEL SETUP ========== //
+  function setupPriceLabels() {
+    // Iterate over all chart containers
+    const chartContainers = document.querySelectorAll('.chart-container');
+    chartContainers.forEach(function(container) {
+      // We'll have two possible Plotly charts inside: chart_all_zones_* and chart_fresh_zones_*
+      const chartAllZones = container.querySelector('[id^="chart_all_zones_"]');
+      const chartFreshZones = container.querySelector('[id^="chart_fresh_zones_"]');
+      const priceLabel = container.querySelector('.chart-price-label');
+
+      // Attach events to whichever .js-plotly-plot is inside these containers
+      attachEvents(chartAllZones, priceLabel, container);
+      attachEvents(chartFreshZones, priceLabel, container);
+    });
+  }
+
+  // The critical fix: attach the hover events to the actual .js-plotly-plot element
+  function attachEvents(chartDiv, priceLabel, container) {
+    if (!chartDiv || !priceLabel) return;
+
+    // The real Plotly chart is inside .js-plotly-plot
+    const plotlyChart = chartDiv.querySelector('.js-plotly-plot');
+    if (!plotlyChart) return; // If not found, no chart is here
+
+    // On hover, we get the data points. We'll place a label at the correct position.
+    plotlyChart.on('plotly_hover', function(data) {
+      // Usually data.points[0] has our x/y info
+      if (!data || !data.points || !data.points.length) return;
+      const point = data.points[0];
+      const price = point.y;
+
+      // The event gives the mouse position in data.event
+      const mouseEvent = data.event;
+      const containerRect = container.getBoundingClientRect();
+      const mouseX = mouseEvent.clientX - containerRect.left;
+      const mouseY = mouseEvent.clientY - containerRect.top;
+
+      // Update the label text
+      priceLabel.textContent = `Price: ${price}`;
+
+      // Calculate label position so it's near the cursor, on the right side
+      const labelWidth = priceLabel.offsetWidth;
+      const labelHeight = priceLabel.offsetHeight;
+      const offsetX = 10; // Slight offset to the right
+      const offsetY = -10; // Slight offset up
+
+      let left = mouseX + offsetX;
+      let top = mouseY + offsetY;
+
+      // Boundary checks so label doesn't overflow container
+      if (left + labelWidth > containerRect.width) {
+        left = mouseX - labelWidth - offsetX;
+      }
+      if (top < 0) top = 0;
+      if (top + labelHeight > containerRect.height) {
+        top = containerRect.height - labelHeight;
+      }
+
+      // Apply to label
+      priceLabel.style.left = left + 'px';
+      priceLabel.style.top = top + 'px';
+      priceLabel.style.display = 'block';
+    });
+
+    // On unhover, hide the label
+    plotlyChart.on('plotly_unhover', function() {
+      priceLabel.style.display = 'none';
+    });
+  }
+
+  // Initialize price labels after a short delay
+  setTimeout(setupPriceLabels, 1000);
+
+  // Default state
   showData('stock');
   showChart('stock', '1d');
 });

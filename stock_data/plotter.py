@@ -40,47 +40,50 @@ class Plotter:
         )
         logging.debug("Added EMA20 to the chart")
 
-        # Update layout for TradingView-like tracer, aesthetics, and interactions
+        # Update layout for TradingView-like tracer and price highlighting
         fig.update_layout(
-            template='plotly_white',      # White theme for a light background
+            template='plotly_white',
             title=dict(
                 text=f'Candlestick Chart for {stock_code}',
                 font=dict(color='black')
             ),
-            hovermode='x unified',        # Unified hover along x-axis
-            spikedistance=-1,             # Activate spikes for entire chart area
+            hovermode='x unified',
+            spikedistance=-1,
             hoverlabel=dict(
                 bgcolor="white",
                 font_color="black",
                 font_size=12,
                 font_family="Arial"
             ),
-            dragmode='zoom',              # Enable zoom on drag
+            dragmode='zoom',
             xaxis=dict(
                 showspikes=True,
                 spikemode='across',
                 spikesnap='cursor',
-                spikecolor='grey',
-                spikedash='dot',
+                spikecolor='black',
+                spikedash='solid',
                 spikethickness=1,
                 showline=True,
-                showgrid=False,           # Remove x-axis grid
+                showgrid=False,
                 tickformat='%Y-%m-%d',
                 tickfont=dict(color='black'),
                 title_font=dict(color='black')
             ),
+# Update yaxis configuration in your Plotter class
             yaxis=dict(
-                side='right',             # Display y-axis (price) on the right side
+                side='right',
                 showspikes=True,
                 spikemode='across',
                 spikesnap='cursor',
-                spikecolor='grey',
-                spikedash='dot',
+                spikecolor='rgba(0,0,0,0.3)',  # Semi-transparent spike
+                spikedash='solid',
                 spikethickness=1,
                 showline=True,
-                showgrid=False,           # Remove y-axis grid
+                showgrid=False,
+                tickformat='.2f',
                 tickfont=dict(color='black'),
-                title_font=dict(color='black')
+                title_font=dict(color='black'),
+                fixedrange=True  # Important for accurate mouse position calculation
             ),
             xaxis_rangeslider_visible=False,
             autosize=True,
@@ -91,5 +94,5 @@ class Plotter:
             paper_bgcolor='rgba(0,0,0,0)'
         )
 
-        logging.debug("Candlestick chart created successfully with EMA20")
+        logging.debug("Candlestick chart created successfully with EMA20 and price tracking")
         return fig

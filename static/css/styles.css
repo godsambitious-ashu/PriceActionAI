@@ -5,14 +5,18 @@
   background-color: #ffffff;
   border-radius: 5px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* Remove any order or margin auto rules that might conflict */
 .gpt-section {
-  /* previously had order or margin-left settings? remove them */
+  /* Freed from conflicting or old styles */
 }
 .search-section {
-  /* previously had order or margin settings? remove them */
+  /* Freed from conflicting or old styles */
 }
 
 /* GPT Section & Search Section forms */
@@ -28,7 +32,7 @@
 .custom-form-control {
   flex-grow: 1;
   font-size: 0.85rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
@@ -36,14 +40,14 @@
 .custom-form-select {
   flex-shrink: 0;
   font-size: 0.85rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
 
 .custom-btn {
   flex-shrink: 0;
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 1rem;
   font-size: 0.85rem;
   border: none;
   border-radius: 4px;
@@ -79,7 +83,7 @@
 
 /* --- Chat Panel --- */
 .chat-panel {
-  padding: 0.75rem;
+  padding: 1rem;
   margin-bottom: 1rem;
   background-color: #f8f9fa;
   border-radius: 5px;
@@ -87,17 +91,17 @@
 }
 
 .chat-message {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .chat-message.user .message {
   background-color: #d1e7dd; 
-  padding: 0.3rem 0.6rem;
+  padding: 0.5rem 1rem;
   border-radius: 12px;
   display: inline-block;
 }
 .chat-message.assistant .message {
   background-color: #cff4fc;
-  padding: 0.3rem 0.6rem;
+  padding: 0.5rem 1rem;
   border-radius: 12px;
   display: inline-block;
 }
@@ -123,11 +127,30 @@
 
 /* --- Chart Container --- */
 .chart-container {
+  position: relative; /* Ensure the container is positioned relatively */
   background-color: #ffffff; 
   margin-bottom: 1rem;
   padding: 1rem;
   border-radius: 5px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Price Label */
+.chart-price-label {
+  position: absolute;
+  display: none; /* Hidden by default */
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border: 1px solid #2c3e50;
+  border-radius: 4px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  color: #2c3e50;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 1000;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* --- Responsive Adjustments --- */
