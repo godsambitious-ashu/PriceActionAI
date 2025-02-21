@@ -16,6 +16,26 @@
     crossorigin="anonymous"
     referrerpolicy="no-referrer"
   />
+  <style>
+    /* Chart Responsiveness */
+    .chart-container {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      overflow: hidden;
+    }
+    .chart-container > div {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .charts-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+  </style>
 {% endblock %}
 
 {% block gpt_section %}
@@ -43,9 +63,9 @@
 {% endblock %}
 
 {% block search_section %}
-  <!-- Stock Search Form -->
+  <!-- Stock Search Form (Normal Behavior) -->
   <div class="search-section">
-    <form method="POST">
+    <form id="searchForm" method="POST">
       <!-- Stock Search Input -->
       <input
         type="text"
@@ -78,18 +98,11 @@
 
 {% block content %}
   {% if chat_history %}
-    {% set chat = chat_history[-1] %}
     <div class="chat-panel">
-      <h6 class="text-center mb-1">{{ chat.stock_code }} - {{ chat.timestamp }}</h6>
       <div id="chatDisplay" style="max-height: 200px; overflow-y: auto;">
-        {% if chat.user_query %}
-          <div class="chat-message user">
-            <div class="message"><strong>You:</strong> {{ chat.user_query }}</div>
-          </div>
-        {% endif %}
-        {% if chat.gpt_answer %}
+        {% if chat_history[-1].gpt_answer %}
           <div class="chat-message assistant">
-            <div class="message"><strong>GPT:</strong> {{ chat.gpt_answer }}</div>
+            <div class="message"><strong>GPT:</strong> {{ chat_history[-1].gpt_answer }}</div>
           </div>
         {% endif %}
       </div>
@@ -102,27 +115,15 @@
           <div class="d-flex align-items-center justify-content-start gap-3 flex-wrap mb-2">
             <!-- Stock/Index Toggle Buttons -->
             <div class="button-panel mb-0">
-              <button
-                type="button"
-                class="custom-btn custom-btn-success active"
-                onclick="showData('stock')"
-              >
+              <button type="button" class="custom-btn custom-btn-success active" onclick="showData('stock')">
                 Stock
               </button>
               {% if index_charts %}
-                <button
-                  type="button"
-                  class="custom-btn custom-btn-success"
-                  onclick="showData('index')"
-                >
+                <button type="button" class="custom-btn custom-btn-success" onclick="showData('index')">
                   Index
                 </button>
               {% else %}
-                <button
-                  type="button"
-                  class="custom-btn custom-btn-success"
-                  disabled
-                >
+                <button type="button" class="custom-btn custom-btn-success" disabled>
                   Index
                 </button>
               {% endif %}
@@ -130,56 +131,24 @@
 
             <!-- Stock Interval Buttons -->
             <div class="button-panel mb-0">
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary active"
-                onclick="showChart('stock', '1d')"
-              >1D</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('stock', '1wk')"
-              >1W</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('stock', '1mo')"
-              >1M</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('stock', '3mo')"
-              >3M</button>
+              <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('stock', '1d')">1D</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1wk')">1W</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '1mo')">1M</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('stock', '3mo')">3M</button>
             </div>
           </div>
 
           <!-- Stock Charts Loop -->
           {% for interval, chart_data in charts.items() %}
-            <div class="chart-container mb-2"
-                 id="chart_container_stock_{{ interval }}"
-                 {% if interval != '1d' %}style="display:none;"{% endif %}>
-              <!-- Price Label Container -->
-              <div class="chart-price-label" id="price_label_stock_{{ interval }}"></div>
-              
+            <div class="chart-container mb-2" id="chart_container_stock_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
               <!-- Fullscreen + Fresh Zones on the same line -->
               <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
-                <button
-                  type="button"
-                  class="custom-btn custom-btn-secondary btn-sm"
-                  onclick="toggleFullscreen('chart_container_stock_{{ interval }}')"
-                >
+                <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_stock_{{ interval }}')">
                   <i class="fas fa-expand"></i>
                 </button>
                 <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="fresh_toggle_stock_{{ interval }}"
-                    onchange="toggleFreshZones('stock', '{{ interval }}')"
-                  >
-                  <label class="form-check-label" for="fresh_toggle_stock_{{ interval }}">
-                    Fresh zones
-                  </label>
+                  <input class="form-check-input" type="checkbox" id="fresh_toggle_stock_{{ interval }}" onchange="toggleFreshZones('stock', '{{ interval }}')">
+                  <label class="form-check-label" for="fresh_toggle_stock_{{ interval }}">Fresh zones</label>
                 </div>
               </div>
 
@@ -204,74 +173,34 @@
           <div class="d-flex align-items-center justify-content-start gap-3 flex-wrap mb-2">
             <!-- Stock/Index Toggle Buttons -->
             <div class="button-panel mb-0">
-              <button
-                type="button"
-                class="custom-btn custom-btn-success"
-                onclick="showData('stock')"
-              >
+              <button type="button" class="custom-btn custom-btn-success" onclick="showData('stock')">
                 Stock
               </button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-success active"
-                onclick="showData('index')"
-              >
+              <button type="button" class="custom-btn custom-btn-success active" onclick="showData('index')">
                 Index
               </button>
             </div>
 
             <!-- Index Interval Buttons -->
             <div class="button-panel mb-0">
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary active"
-                onclick="showChart('index', '1d')"
-              >1D</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('index', '1wk')"
-              >1W</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('index', '1mo')"
-              >1M</button>
-              <button
-                type="button"
-                class="custom-btn custom-btn-primary"
-                onclick="showChart('index', '3mo')"
-              >3M</button>
+              <button type="button" class="custom-btn custom-btn-primary active" onclick="showChart('index', '1d')">1D</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1wk')">1W</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '1mo')">1M</button>
+              <button type="button" class="custom-btn custom-btn-primary" onclick="showChart('index', '3mo')">3M</button>
             </div>
           </div>
 
           <!-- Index Charts Loop -->
           {% for interval, chart_data in index_charts.items() %}
-            <div class="chart-container mb-2"
-                 id="chart_container_index_{{ interval }}"
-                 {% if interval != '1d' %}style="display:none;"{% endif %}>
-              <!-- Price Label Container -->
-              <div class="chart-price-label" id="price_label_index_{{ interval }}"></div>
-              
+            <div class="chart-container mb-2" id="chart_container_index_{{ interval }}" {% if interval != '1d' %}style="display:none;"{% endif %}>
               <!-- Fullscreen + Fresh Zones on the same line -->
               <div class="d-flex align-items-center justify-content-end gap-3 flex-wrap mb-2">
-                <button
-                  type="button"
-                  class="custom-btn custom-btn-secondary btn-sm"
-                  onclick="toggleFullscreen('chart_container_index_{{ interval }}')"
-                >
+                <button type="button" class="custom-btn custom-btn-secondary btn-sm" onclick="toggleFullscreen('chart_container_index_{{ interval }}')">
                   <i class="fas fa-expand"></i>
                 </button>
                 <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="fresh_toggle_index_{{ interval }}"
-                    onchange="toggleFreshZones('index', '{{ interval }}')"
-                  >
-                  <label class="form-check-label" for="fresh_toggle_index_{{ interval }}">
-                    Fresh zones
-                  </label>
+                  <input class="form-check-input" type="checkbox" id="fresh_toggle_index_{{ interval }}" onchange="toggleFreshZones('index', '{{ interval }}')">
+                  <label class="form-check-label" for="fresh_toggle_index_{{ interval }}">Fresh zones</label>
                 </div>
               </div>
 
@@ -289,6 +218,19 @@
       </div>
     {% endif %}
   {% endif %}
+  
+  {# --- Floating Icon & Modal for Multi-Stock GPT Replies --- #}
+  <div id="multiStockTrigger" style="position: fixed; bottom: 20px; right: 20px; cursor: pointer; z-index: 999;" title="View Multi Stock GPT Replies">
+    <i class="fas fa-layer-group fa-2x"></i>
+  </div>
+  
+  <div id="multiStockModal" style="display: none; position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; background: white; z-index: 1000; border: 2px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+    <div style="position: relative; height: 100%;">
+       <button id="closeModal" style="position: absolute; top: 10px; right: 10px;">Close</button>
+       <iframe src="/multi_stock" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+  </div>
+  
 {% endblock %}
 
 {% block extra_js %}
@@ -302,7 +244,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const userInput = document.getElementById('gptInput');
       const userMessage = userInput.value.trim();
       if (!userMessage) return;
-
       try {
         const response = await fetch('/send_message', {
           method: 'POST',
@@ -324,14 +265,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Update Chat Display
+  // Update Chat Display: show "GPT:" followed by the reply
   function updateChatDisplay(userMsg, gptMsg) {
     const chatDisplay = document.getElementById('chatDisplay');
     if (chatDisplay) {
       chatDisplay.innerHTML += `
-        <div class="chat-message user">
-          <div class="message"><strong>You:</strong> ${userMsg}</div>
-        </div>
         <div class="chat-message assistant">
           <div class="message"><strong>GPT:</strong> ${gptMsg}</div>
         </div>
@@ -357,7 +295,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const allZonesDiv = document.getElementById(`chart_all_zones_${dataType}_${interval}`);
     const freshZonesDiv = document.getElementById(`chart_fresh_zones_${dataType}_${interval}`);
     const checkbox = document.getElementById(`fresh_toggle_${dataType}_${interval}`);
-
     if (checkbox.checked) {
       allZonesDiv.style.display = 'none';
       freshZonesDiv.style.display = 'block';
@@ -372,7 +309,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockSection = document.getElementById('stock_section');
     const indexSection = document.getElementById('index_section');
     if (!stockSection || !indexSection) return;
-
     if (dataType === 'stock') {
       stockSection.style.display = 'block';
       indexSection.style.display = 'none';
@@ -400,78 +336,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // ========== PRICE LABEL SETUP ========== //
-  function setupPriceLabels() {
-    // Iterate over all chart containers
-    const chartContainers = document.querySelectorAll('.chart-container');
-    chartContainers.forEach(function(container) {
-      // We'll have two possible Plotly charts inside: chart_all_zones_* and chart_fresh_zones_*
-      const chartAllZones = container.querySelector('[id^="chart_all_zones_"]');
-      const chartFreshZones = container.querySelector('[id^="chart_fresh_zones_"]');
-      const priceLabel = container.querySelector('.chart-price-label');
-
-      // Attach events to whichever .js-plotly-plot is inside these containers
-      attachEvents(chartAllZones, priceLabel, container);
-      attachEvents(chartFreshZones, priceLabel, container);
-    });
-  }
-
-  // The critical fix: attach the hover events to the actual .js-plotly-plot element
-  function attachEvents(chartDiv, priceLabel, container) {
-    if (!chartDiv || !priceLabel) return;
-
-    // The real Plotly chart is inside .js-plotly-plot
-    const plotlyChart = chartDiv.querySelector('.js-plotly-plot');
-    if (!plotlyChart) return; // If not found, no chart is here
-
-    // On hover, we get the data points. We'll place a label at the correct position.
-    plotlyChart.on('plotly_hover', function(data) {
-      // Usually data.points[0] has our x/y info
-      if (!data || !data.points || !data.points.length) return;
-      const point = data.points[0];
-      const price = point.y;
-
-      // The event gives the mouse position in data.event
-      const mouseEvent = data.event;
-      const containerRect = container.getBoundingClientRect();
-      const mouseX = mouseEvent.clientX - containerRect.left;
-      const mouseY = mouseEvent.clientY - containerRect.top;
-
-      // Update the label text
-      priceLabel.textContent = `Price: ${price}`;
-
-      // Calculate label position so it's near the cursor, on the right side
-      const labelWidth = priceLabel.offsetWidth;
-      const labelHeight = priceLabel.offsetHeight;
-      const offsetX = 10; // Slight offset to the right
-      const offsetY = -10; // Slight offset up
-
-      let left = mouseX + offsetX;
-      let top = mouseY + offsetY;
-
-      // Boundary checks so label doesn't overflow container
-      if (left + labelWidth > containerRect.width) {
-        left = mouseX - labelWidth - offsetX;
-      }
-      if (top < 0) top = 0;
-      if (top + labelHeight > containerRect.height) {
-        top = containerRect.height - labelHeight;
-      }
-
-      // Apply to label
-      priceLabel.style.left = left + 'px';
-      priceLabel.style.top = top + 'px';
-      priceLabel.style.display = 'block';
-    });
-
-    // On unhover, hide the label
-    plotlyChart.on('plotly_unhover', function() {
-      priceLabel.style.display = 'none';
-    });
-  }
-
-  // Initialize price labels after a short delay
-  setTimeout(setupPriceLabels, 1000);
+  // Modal for Multi-Stock GPT Replies
+  const multiStockTrigger = document.getElementById('multiStockTrigger');
+  const multiStockModal = document.getElementById('multiStockModal');
+  const closeModal = document.getElementById('closeModal');
+  multiStockTrigger.addEventListener('click', function() {
+    multiStockModal.style.display = 'block';
+  });
+  closeModal.addEventListener('click', function() {
+    multiStockModal.style.display = 'none';
+  });
 
   // Default state
   showData('stock');

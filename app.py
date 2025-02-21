@@ -38,6 +38,53 @@ else:
     gpt_client = None
     logging.debug("GPT functionality is disabled via ENABLE_GPT flag.")
 
+# Define the stock codes to be processed for the multi-stock GPT replies
+MULTI_STOCK_CODES = [
+    'NIFTY50', 'BANKNIFTY', 'NIFTYAUTO', 'NIFTYMETAL',
+    'NIFTY FMCG', 'NIFTY PHARMA', 'NIFTY IT', 'NIFTY ENERGY',
+    'NIFTY MEDIA', 'NIFTY REALTY', 'NIFTY PSU BANK'
+]
+
+def process_multi_stock_gpt_replies(period='1y'):
+    """
+    Process GPT replies for all stocks defined in MULTI_STOCK_CODES.
+    Returns a dictionary mapping each stock code to its GPT reply.
+    """
+    multi_gpt_replies = {}
+    for stock_code in MULTI_STOCK_CODES:
+        try:
+            dz_manager = DemandZoneManager(stock_code)
+            (
+                charts,
+                demand_zones_info,
+                supply_zones_info,
+                all_demand_zones_fresh,
+                all_supply_zones_fresh,
+                monthly_all_zones,
+                daily_all_zones,
+                current_market_price,
+                fresh_1d_zones, 
+                wk_demand_zones
+            ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
+            
+            if ENABLE_GPT and gpt_client:
+                zones = gpt_client.prepare_zones(
+                    monthly_all_zones,
+                    fresh_1d_zones,
+                    current_market_price,
+                    wk_demand_zones,
+                    f"Stock Data for {stock_code}"
+                )
+                final_query = f"The current market price of {stock_code} is {current_market_price}."
+                gpt_reply = gpt_client.call_gpt(final_query, {"main": zones})
+                multi_gpt_replies[stock_code] = gpt_reply
+            else:
+                multi_gpt_replies[stock_code] = "GPT functionality is disabled."
+        except Exception as e:
+            logging.error(f"Error processing stock {stock_code}: {e}")
+            multi_gpt_replies[stock_code] = f"Error processing stock {stock_code}."
+    return multi_gpt_replies
+
 @app.route('/user_info', methods=['GET', 'POST'])
 def user_info():
     if request.method == 'POST':
@@ -50,6 +97,10 @@ def user_info():
 
         if 'chat_history' not in session:
             session['chat_history'] = []
+
+        # Process multi-stock GPT replies once at login and store them in session.
+        if ENABLE_GPT and gpt_client and 'multi_stock_gpt_replies' not in session:
+            session['multi_stock_gpt_replies'] = process_multi_stock_gpt_replies()
 
         return redirect(url_for('index'))
 
@@ -193,7 +244,6 @@ def index():
             else:
                 gpt_auto_answer = None
 
-
             session['gpt_dto'] = final_zones_for_gpt
             logging.debug(f"Serialized fresh zones stored in session: {final_zones_for_gpt}")
 
@@ -258,7 +308,6 @@ def index():
                 index_demand_zones_info=frontend_data['index_stock']['demand_zones_info'],
                 index_supply_zones_info=frontend_data['index_stock']['supply_zones_info'],
                 index_current_market_price=frontend_data['index_stock']['current_market_price'],
-                # Add other index-related data as needed
             )
         except Exception as e:
             logging.error(f"Error processing request: {e}")
@@ -301,7 +350,6 @@ def index():
         index_demand_zones_info=index_stock.get('demand_zones_info'),
         index_supply_zones_info=index_stock.get('supply_zones_info'),
         index_current_market_price=index_stock.get('current_market_price'),
-        # Add other index-related data as needed
     )
 
 @app.route('/send_message', methods=['POST'])
@@ -319,6 +367,21 @@ def send_message():
         gpt_response = gpt_client.call_gpt(user_message, gpt_dto)
     
     return jsonify({'message': gpt_response})
+
+# New route: multi-stock display using cached GPT replies
+@app.route('/multi_stock', methods=['GET'])
+def multi_stock():
+    if 'name' not in session or 'email' not in session:
+        logging.debug("User not authenticated. Redirecting to /user_info")
+        return redirect(url_for('user_info'))
+    
+    # Retrieve the stored multi-stock GPT replies from session.
+    multi_gpt_replies = session.get('multi_stock_gpt_replies')
+    if not multi_gpt_replies:
+        multi_gpt_replies = process_multi_stock_gpt_replies()
+        session['multi_stock_gpt_replies'] = multi_gpt_replies
+    
+    return render_template('multi_stock.html', gpt_replies=multi_gpt_replies)
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,0 +1,26 @@
+{# templates/multi_stock.html #}
+{% extends "base.html" %}
+
+{% block title %}
+  Multi Stock GPT Replies
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Stock GPT Replies</h2>
+  <div class="row">
+    {% for stock, reply in gpt_replies.items() %}
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header">
+            <strong>{{ stock }}</strong>
+          </div>
+          <div class="card-body">
+            <p class="card-text">{{ reply }}</p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
