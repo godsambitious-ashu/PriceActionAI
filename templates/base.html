@@ -102,5 +102,12 @@
   <!-- Your main JS -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   {% block extra_js %}{% endblock %}
+  <script type="module">
+    import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js"
+    Chatbot.init({
+        chatflowid: "5ddc4cb7-3544-4bce-8068-34e28f12529d",
+        apiHost: "http://localhost:3000",
+    })
+  </script>
 </body>
 </html>

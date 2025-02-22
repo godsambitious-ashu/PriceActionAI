@@ -6,6 +6,7 @@ from stock_data.demand_zone_manager import DemandZoneManager
 from stock_data.gpt_client import GPTClient
 import logging
 from datetime import datetime
+import requests  # Added for Flowise API calls
 
 app = Flask(__name__)
 
@@ -25,6 +26,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(mes
 HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
 ENABLE_GPT = True
 
+# Flag to choose between ChatGPT and Flowise.
+# If USE_FLOWISE is True, Flowise will be used instead of ChatGPT.
+USE_FLOWISE = False  # Set to True to use Flowise
+FLOWISE_API_URL = "http://localhost:3000/api/v1/prediction/5ddc4cb7-3544-4bce-8068-34e28f12529d"
+
 if ENABLE_GPT:
     OPENAI_API_KEY = "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"  # Replace with your OpenAI API key.
     try:
@@ -37,17 +43,56 @@ else:
     gpt_client = None
     logging.debug("GPT functionality is disabled via ENABLE_GPT flag.")
 
-# Define the stock codes to be processed for the multi-stock GPT replies
+# Define the stock codes to be processed for the multi-stock AI replies
 MULTI_STOCK_CODES = [
     'NIFTY50', 'BANKNIFTY', 'NIFTYAUTO', 'NIFTYMETAL',
     'NIFTY FMCG', 'NIFTY PHARMA', 'NIFTY IT', 'NIFTY ENERGY',
     'NIFTY MEDIA', 'NIFTY REALTY', 'NIFTY PSU BANK'
 ]
 
+def call_flowise(query, zones):
+    """
+    Calls the Flowise API with a combined query and context.
+    """
+    zones_context = ""
+    if zones:
+        for key, value in zones.items():
+            zones_context += f"{key}: {value}\n"
+    combined_query = f"{query}\n{zones_context}"
+    payload = {"question": combined_query}
+    logging.debug(f"Calling Flowise API with payload: {payload}")
+    try:
+        response = requests.post(FLOWISE_API_URL, json=payload)
+        logging.debug(f"Flowise API response status: {response.status_code}")
+        response.raise_for_status()
+        data = response.json()
+        logging.debug(f"Flowise API response data: {data}")
+        # Check for 'answer', if not available, fallback to 'text'
+        flowise_reply = data.get("answer") or data.get("text", "")
+        logging.debug(f"Flowise reply extracted: {flowise_reply}")
+        return flowise_reply
+    except Exception as e:
+        logging.error(f"Error calling Flowise API: {e}")
+        return "Error calling Flowise API."
+
+def call_ai(query, zones):
+    """
+    Wrapper to call either Flowise or GPTClient based on the USE_FLOWISE flag.
+    """
+    if USE_FLOWISE:
+        logging.debug("USE_FLOWISE flag is True. Calling Flowise.")
+        return call_flowise(query, zones)
+    else:
+        logging.debug("USE_FLOWISE flag is False. Using GPTClient.")
+        if ENABLE_GPT and gpt_client:
+            return gpt_client.call_gpt(query, zones)
+        else:
+            return "AI functionality is disabled."
+
 def process_multi_stock_gpt_replies(period='2y'):
     """
-    Process GPT replies for all stocks defined in MULTI_STOCK_CODES.
-    Returns a dictionary mapping each stock code to its GPT reply.
+    Process AI replies for all stocks defined in MULTI_STOCK_CODES.
+    Returns a dictionary mapping each stock code to its AI reply.
     """
     multi_gpt_replies = {}
     for stock_code in MULTI_STOCK_CODES:
@@ -66,7 +111,7 @@ def process_multi_stock_gpt_replies(period='2y'):
                 wk_demand_zones
             ) = dz_manager.process_all_intervals(HARDCODED_INTERVALS, period)
             
-            if ENABLE_GPT and gpt_client:
+            if USE_FLOWISE or (ENABLE_GPT and gpt_client):
                 zones = gpt_client.prepare_zones(
                     monthly_all_zones,
                     fresh_1d_zones,
@@ -75,10 +120,10 @@ def process_multi_stock_gpt_replies(period='2y'):
                     f"Stock Data for {stock_code}"
                 )
                 final_query = f"The current market price of {stock_code} is {current_market_price}."
-                gpt_reply = gpt_client.call_gpt(final_query, {"main": zones})
-                multi_gpt_replies[stock_code] = gpt_reply
+                ai_reply = call_ai(final_query, {"main": zones})
+                multi_gpt_replies[stock_code] = ai_reply
             else:
-                multi_gpt_replies[stock_code] = "GPT functionality is disabled."
+                multi_gpt_replies[stock_code] = "AI functionality is disabled."
         except Exception as e:
             logging.error(f"Error processing stock {stock_code}: {e}")
             multi_gpt_replies[stock_code] = f"Error processing stock {stock_code}."
@@ -97,8 +142,8 @@ def user_info():
         if 'chat_history' not in session:
             session['chat_history'] = []
 
-        # Process multi-stock GPT replies once at login and store them in session.
-        if ENABLE_GPT and gpt_client and 'multi_stock_gpt_replies' not in session:
+        # Process multi-stock AI replies once at login and store them in session.
+        if (USE_FLOWISE or (ENABLE_GPT and gpt_client)) and 'multi_stock_gpt_replies' not in session:
             session['multi_stock_gpt_replies'] = process_multi_stock_gpt_replies()
 
         return redirect(url_for('index'))
@@ -126,7 +171,7 @@ def index():
     email = session.get('email')
     logging.debug(f"User Info from Session: Name={name}, Email={email}")
 
-    if ENABLE_GPT and gpt_client:
+    if (USE_FLOWISE or (ENABLE_GPT and gpt_client)):
         if request.method == 'GET':
             gpt_answer = session.pop('gpt_answer', None)
             gpt_auto_answer = session.pop('gpt_auto_answer', None)
@@ -136,7 +181,7 @@ def index():
     else:
         gpt_answer = None
         gpt_auto_answer = None
-        logging.debug("GPT functionality is disabled. Setting GPT answers to None.")
+        logging.debug("AI functionality is disabled. Setting AI answers to None.")
 
     if request.method == 'POST':
         try:
@@ -196,9 +241,9 @@ def index():
             else:
                 logging.debug("No index_code found for the given stock_code.")
 
-            # Prepare Zones for GPT using Main Stock Data
+            # Prepare Zones for AI using Main Stock Data
             final_zones_for_gpt = {}
-            if ENABLE_GPT and gpt_client:
+            if USE_FLOWISE or (ENABLE_GPT and gpt_client):
                 # Prepare zones for main stock
                 main_zones = gpt_client.prepare_zones(
                     main_monthly_all_zones,
@@ -208,7 +253,7 @@ def index():
                     "Main Stock Data"
                 )
                 final_zones_for_gpt['main'] = main_zones
-                logging.debug(f"Main zones prepared for GPT: {main_zones}")
+                logging.debug(f"Main zones prepared for AI: {main_zones}")
 
                 # Prepare zones for index stock if available
                 if index_code and index_monthly_all_zones and index_current_market_price:
@@ -220,25 +265,21 @@ def index():
                         "Index Data"
                     )
                     final_zones_for_gpt['index'] = index_zones
-                    logging.debug(f"Index zones prepared for GPT: {index_zones}")
+                    logging.debug(f"Index zones prepared for AI: {index_zones}")
                 else:
-                    logging.debug("No valid index zones data to prepare for GPT.")
+                    logging.debug("No valid index zones data to prepare for AI.")
 
-            # Generate GPT Auto Answer using Combined Zones
-            if ENABLE_GPT and gpt_client and final_zones_for_gpt:
+            # Generate AI Auto Answer using Combined Zones
+            if (USE_FLOWISE or (ENABLE_GPT and gpt_client)) and final_zones_for_gpt:
                 final_query = f"The current market price of the stock is {main_current_market_price}."
-
-                # Optionally, include index market price in the query
                 if index_current_market_price:
                     final_query += f" The current market price of the index {index_code} is {index_current_market_price}."
-
-                final_gpt_answer = gpt_client.call_gpt(final_query, final_zones_for_gpt)
-
-                session['gpt_auto_answer'] = final_gpt_answer
-                gpt_auto_answer = final_gpt_answer
-                logging.debug("GPT auto answer generated successfully.")
+                final_ai_answer = call_ai(final_query, final_zones_for_gpt)
+                session['gpt_auto_answer'] = final_ai_answer
+                gpt_auto_answer = final_ai_answer
+                logging.debug(f"AI auto answer generated successfully: {final_ai_answer}")
             elif ENABLE_GPT:
-                logging.debug("No valid zones data to generate GPT auto answer.")
+                logging.debug("No valid zones data to generate AI auto answer.")
                 gpt_auto_answer = "No sufficient data available for automatic analysis."
             else:
                 gpt_auto_answer = None
@@ -353,28 +394,28 @@ def index():
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    if not ENABLE_GPT:
-        return jsonify({'error': 'GPT functionality is disabled.'}), 403
+    if not (USE_FLOWISE or (ENABLE_GPT and gpt_client)):
+        return jsonify({'error': 'AI functionality is disabled.'}), 403
 
     user_message = request.form.get('message', '').strip()
     if not user_message:
         return jsonify({'error': 'Empty message.'}), 400
 
-    gpt_response = "GPT not available."
-    if gpt_client:
-        gpt_dto = session.get('gpt_dto', {})
-        gpt_response = gpt_client.call_gpt(user_message, gpt_dto)
+    gpt_dto = session.get('gpt_dto', {})
+    logging.debug(f"send_message - User message: {user_message} | gpt_dto: {gpt_dto}")
+    ai_response = call_ai(user_message, gpt_dto)
+    logging.debug(f"send_message - AI response: {ai_response}")
     
-    return jsonify({'message': gpt_response})
+    return jsonify({'message': ai_response})
 
-# New route: multi-stock display using cached GPT replies
+# New route: multi-stock display using cached AI replies
 @app.route('/multi_stock', methods=['GET'])
 def multi_stock():
     if 'name' not in session or 'email' not in session:
         logging.debug("User not authenticated. Redirecting to /user_info")
         return redirect(url_for('user_info'))
     
-    # Retrieve the stored multi-stock GPT replies from session.
+    # Retrieve the stored multi-stock AI replies from session.
     multi_gpt_replies = session.get('multi_stock_gpt_replies')
     if not multi_gpt_replies:
         multi_gpt_replies = process_multi_stock_gpt_replies()
