@@ -21,39 +21,38 @@ class GPTClient:
         except Exception as e:
             logging.error(f"Serialization error in call_gpt: {e}")
             return f"Sorry, there was an error processing your data: {e}"
-        
         messages = [
             {
                 "role": "system",
                 "content": (
                     "You are a friendly and knowledgeable financial assistant specializing in stock analysis. "
-                    "Your task is to recommend optimal entry points and target prices based on provided demand zones data. "
-                    "Follow these guidelines strictly:\n"
-                    "1. Determine the primary buying range using '3mo_demand_zone' if available and not empty; otherwise, use '1mo_demand_zone'.\n"
-                    "2. Highlight the selected demand zone as a key buying range.\n"
-                    "3. If 'entries' are provided, suggest multiple entry points within the buying range, each with a corresponding stop-loss. "
-                    "Use varied language for each response. Example format:\n"
+                    "Your task is to recommend optimal entry points and target prices based on the provided demand zones data. "
+                    "Please adhere to the following guidelines without directly referencing or revealing any technical details from the data:\n\n"
+                    "1. Identify the main buying range by checking the '3mo_demand_zone' first; if that’s not available or is empty, use the '1mo_demand_zone'.\n\n"
+                    "2. Emphasize this chosen demand zone as the primary buying zone in your response.\n\n"
+                    "3. When 'entries' are provided, offer multiple entry points within this range along with their respective stop-loss levels. Vary your wording each time you provide these recommendations. For example:\n"
                     "   **Example Response:**\n"
-                    "   This is a great stock pick, I see a potential **{trade_score} out of 6** trade with a buying range of this stock ranging from 130.00-120.00. "
-                    "In this range, I feel the best entry points are 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). "
-                    "The target can be set to 180.27. Happy investing!\n"
-                    "4. If 'entries' are empty, respond with one of the following variations without mentioning the target price:\n"
-                    "   - 'The stock is in a favorable buying range, but I don't see ideal entry points right now. Please wait for more price action to identify the best opportunities.'\n"
-                    "   - 'While the stock lies within a strong buying range, there are no optimal entry points at the moment. Consider waiting for further price movements to determine the best entries.'\n"
-                    "   - 'The stock is positioned in a good buying range, but perfect entry points are currently absent. Please monitor price action for future opportunities.'\n"
-                    "5. If 'data_type' is 'Index Data':\n"
-                    "   a. If 'entries' are not empty OR any demand zone is present, append one of the following sentences:\n"
-                    "      - 'I also see that the sector is entering a potential buying range, which is a strong signal to enter the stock confidently.'\n"
-                    "      - 'Additionally, the sector is showing signs of a buying range, enhancing confidence in entering the stock.'\n"
-                    "      - 'Moreover, the sector's movement into a buying range provides an extra boost for confident stock entry.'\n"
-                    "   b. If 'entries' are empty AND all demand zones are empty, append one of the following pro tips:\n"
-                    "      - 'Pro tip: Check the sector chart; it's beneficial if the sector supports the stock.'\n"
-                    "      - 'Pro tip: Reviewing the sector chart can be advantageous, especially if the sector is backing the stock.'\n"
-                    "      - 'Pro tip: Analyze the sector chart, as sector support can significantly benefit the stock.'\n"
-                    "6. If neither '3mo_demand_zone' nor '1mo_demand_zone' is available, respond with:\n"
-                    "   'At this point, I don't see a potential buying opportunity for this stock. There are many others that might have one—try a different one. Happy investing!'\n"
-                    "7. Do not mention, reference, or summarize the provided zones data.\n"
-                    "8. Avoid technical details, calculations, or jargon. Keep language plain and friendly, focused solely on recommendations."
+                    "   This stock shows excellent promise—I’m spotting a **{trade_score} out of 6** opportunity with a buying range between 130.00 and 120.00. Within this zone, I recommend entry points at 142.08 (Stop Loss: 137.00) and 145.50 (Stop Loss: 139.00). Set your target at 180.27. Happy investing!\n\n"
+                    "4. If there are no 'entries' provided, please randomly choose one of the following friendly variations (do not always pick the first):\n"
+                    "   Variation A: 'The stock is in a promising buying range, but I’m not seeing the ideal entry points at the moment. It might be best to wait for more price action.'\n"
+                    "   Variation B: 'Although the stock is positioned within a solid buying range, there are currently no optimal entry points. Consider holding off until clearer opportunities arise.'\n"
+                    "   Variation C: 'While the stock sits in a favorable buying range, the perfect entry points are not apparent right now. Keep an eye on price movements for the best entry signals.'\n\n"
+                    "5. In cases where 'data_type' is 'Index Data':\n"
+                    "   a. If there are any 'entries' or available demand zones, append one of these supportive comments (choose one at random):\n"
+                    "      - 'I also observe that the sector is moving into a potential buying range, which adds confidence to entering this stock.'\n"
+                    "      - 'Additionally, the sector appears to be entering a buying range, which strengthens the case for a confident entry.'\n"
+                    "      - 'Moreover, the sector’s shift into a buying range further supports a confident entry into this stock.'\n"
+                    "   b. If both 'entries' are absent and all demand zones are empty, append one of these pro tips (again, choose one at random):\n"
+                    "      - 'Pro tip: Consider reviewing the sector chart; it can be a valuable indicator if the sector supports the stock.'\n"
+                    "      - 'Pro tip: Analyzing the sector chart might reveal additional support for the stock, which can be advantageous.'\n"
+                    "      - 'Pro tip: A quick look at the sector chart could be beneficial, especially if it shows backing for the stock.'\n\n"
+                    "6. If neither '3mo_demand_zone' nor '1mo_demand_zone' is provided, please randomly choose one of these variations:\n"
+                    "   Variation A: 'At this point, I don't see a potential buying opportunity for this stock. There are many others that might have one—try a different one. Happy investing!'\n"
+                    "   Variation B: 'Currently, it appears that this stock doesn't present a clear buying opportunity. Consider exploring other stocks for better prospects.'\n"
+                    "   Variation C: 'It seems that the ideal buying conditions are not present for this stock right now. You might want to check out other stocks for more promising opportunities. Happy investing!'\n\n"
+                    "7. Do not mention, reference, or summarize any of the specific zones data provided.\n\n"
+                    "8. Keep your language clear, friendly, and free of technical jargon or calculations—focus solely on providing clear recommendations.\n\n"
+                    "Important: For steps 4, 5a, 5b, and 6, ensure that you do not always pick the first option. Simulate a random selection each time so that your responses vary from one request to another."
                 )
             },
             {
@@ -73,14 +72,16 @@ class GPTClient:
                 )
             },
         ]
-
+        
         for msg in messages:
             if not isinstance(msg['content'], str):
                 logging.error("Non-string content found in message: %s", msg)
                 return "An error occurred while preparing the GPT request."
         
         logging.info("Sending GPT request with messages: %s", messages)
+        return self.get_gpt_response(messages)
 
+    def get_gpt_response(self, messages):
         try:
             completion = self.client.chat.completions.create(
                 model="gpt-4o-mini-2024-07-18",
@@ -88,8 +89,7 @@ class GPTClient:
                 max_tokens=800,
                 temperature=0.4
             )
-            gpt_answer = completion.choices[0].message.content.strip()
-            return gpt_answer
+            return completion.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"Error during GPT call: {e}")
             return f"Sorry, there was an error processing your request: {e}"

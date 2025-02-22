@@ -17,23 +17,19 @@
   
   {% block extra_head %}
   <style>
-    /* Force entire fullscreen document background to white */
+    /* Fullscreen and canvas background fixes */
     :-webkit-full-screen,
     :-moz-full-screen,
     :-ms-fullscreen,
     :fullscreen {
       background-color: #fff !important;
     }
-
-    /* Apply white background to any canvas elements in fullscreen */
     :-webkit-full-screen canvas,
     :-moz-full-screen canvas,
     :-ms-fullscreen canvas,
     :fullscreen canvas {
       background-color: #fff !important;
     }
-
-    /* Maintain existing chart-container styling */
     .chart-container:fullscreen,
     .chart-container:-webkit-full-screen,
     .chart-container:-moz-full-screen,
@@ -42,12 +38,26 @@
       width: 100% !important;
       height: 100% !important;
     }
-
     .chart-container:fullscreen canvas,
     .chart-container:-webkit-full-screen canvas,
     .chart-container:-moz-full-screen canvas,
     .chart-container:-ms-fullscreen canvas {
       background-color: white !important;
+    }
+    /* Top Sectors Button Styling */
+    .top-sectors-btn {
+      background-color: #198754; /* Use a color similar to your search button (Bootstrap's success color) */
+      border: none;
+      color: white;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 0.25rem;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+    .top-sectors-btn:hover {
+      background-color: #157347;
+      transform: scale(1.05);
     }
   </style>
   {% endblock %}
@@ -66,14 +76,15 @@
     <!-- === End Navbar === -->
 
     <!-- === Top Control Bar === -->
-    <div
-      class="top-control-bar bg-white shadow-sm py-2 px-3 mb-3 d-flex flex-wrap align-items-center gap-2">
-      
-      {# 1) Place Stock Search Section FIRST (left) #}
-      {% block search_section %}{% endblock %}
-
-      {# 2) Place GPT (Ask AI) Section SECOND (right) #}
-      {% block gpt_section %}{% endblock %}
+    <div class="top-control-bar bg-white shadow-sm py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        {% block search_section %}{% endblock %}
+        {% block gpt_section %}{% endblock %}
+      </div>
+      <!-- Replaced Black Button with Top Sectors Button -->
+      <button id="topSectorsButton" class="top-sectors-btn" title="Top Sectors">
+        Top Sectors
+      </button>
     </div>
     <!-- === End Top Control Bar === -->
 

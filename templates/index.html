@@ -1,4 +1,3 @@
-{# templates/index.html #}
 {% extends "base.html" %}
 
 {% block title %}
@@ -218,66 +217,20 @@
       </div>
     {% endif %}
   {% endif %}
-  
-  {# --- Floating Icon & Modal for Multi-Stock GPT Replies --- #}
-  <div id="multiStockTrigger" style="position: fixed; bottom: 20px; right: 20px; cursor: pointer; z-index: 999;" title="View Multi Stock GPT Replies">
-    <i class="fas fa-layer-group fa-2x"></i>
-  </div>
-  
-  <div id="multiStockModal" style="display: none; position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; background: white; z-index: 1000; border: 2px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+
+  <!-- Modal for Top Sectors functionality -->
+  <div id="topSectorsModal" style="display: none; position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; background: white; z-index: 1000; border: 2px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
     <div style="position: relative; height: 100%;">
        <button id="closeModal" style="position: absolute; top: 10px; right: 10px;">Close</button>
-       <iframe src="/multi_stock" style="width: 100%; height: 100%; border: none;"></iframe>
+       <!-- Load multi_stock without its own top sectors button by passing ?modal=1 -->
+       <iframe src="/multi_stock?modal=1" style="width: 100%; height: 100%; border: none;"></iframe>
     </div>
   </div>
-  
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // GPT Form Submission
-  const gptForm = document.getElementById('gptForm');
-  if (gptForm) {
-    gptForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const userInput = document.getElementById('gptInput');
-      const userMessage = userInput.value.trim();
-      if (!userMessage) return;
-      try {
-        const response = await fetch('/send_message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: new URLSearchParams({ message: userMessage })
-        });
-        const data = await response.json();
-        if (data.error) {
-          alert(data.error);
-        } else {
-          updateChatDisplay(userMessage, data.message);
-          userInput.value = "";
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    });
-  }
-
-  // Update Chat Display: show "GPT:" followed by the reply
-  function updateChatDisplay(userMsg, gptMsg) {
-    const chatDisplay = document.getElementById('chatDisplay');
-    if (chatDisplay) {
-      chatDisplay.innerHTML += `
-        <div class="chat-message assistant">
-          <div class="message"><strong>GPT:</strong> ${gptMsg}</div>
-        </div>
-      `;
-      chatDisplay.scrollTop = chatDisplay.scrollHeight;
-    }
-  }
-
   // Fullscreen Toggle
   window.toggleFullscreen = function(elementId) {
     const chartContainer = document.getElementById(elementId);
@@ -336,20 +289,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // Modal for Multi-Stock GPT Replies
-  const multiStockTrigger = document.getElementById('multiStockTrigger');
-  const multiStockModal = document.getElementById('multiStockModal');
+  // Modal for Top Sectors functionality
+  const topSectorsButton = document.getElementById('topSectorsButton');
+  const topSectorsModal = document.getElementById('topSectorsModal');
   const closeModal = document.getElementById('closeModal');
-  multiStockTrigger.addEventListener('click', function() {
-    multiStockModal.style.display = 'block';
+  topSectorsButton.addEventListener('click', function() {
+    topSectorsModal.style.display = 'block';
   });
   closeModal.addEventListener('click', function() {
-    multiStockModal.style.display = 'none';
+    topSectorsModal.style.display = 'none';
   });
-
-  // Default state
-  showData('stock');
-  showChart('stock', '1d');
 });
 </script>
 {% endblock %}

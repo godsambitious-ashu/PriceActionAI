@@ -5,8 +5,7 @@ from stock_data.plotter import Plotter
 from stock_data.demand_zone_manager import DemandZoneManager
 from stock_data.gpt_client import GPTClient
 import logging
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -45,7 +44,7 @@ MULTI_STOCK_CODES = [
     'NIFTY MEDIA', 'NIFTY REALTY', 'NIFTY PSU BANK'
 ]
 
-def process_multi_stock_gpt_replies(period='1y'):
+def process_multi_stock_gpt_replies(period='2y'):
     """
     Process GPT replies for all stocks defined in MULTI_STOCK_CODES.
     Returns a dictionary mapping each stock code to its GPT reply.
