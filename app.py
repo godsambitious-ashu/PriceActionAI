@@ -89,7 +89,7 @@ if ENABLE_GPT:
 
 # Stock codes list
 MULTI_STOCK_CODES = [
-    'NIFTY50', 'BANKNIFTY', 'NIFTYAUTO', 'NIFTY PSU BANK'
+    'NIFTY50'
 ]
 
 def call_flowise(query, zones):
