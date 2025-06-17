@@ -107,9 +107,14 @@ def call_flowise(query, zones):
 def call_ai(query, zones):
     if USE_FLOWISE:
         return call_flowise(query, zones)
-    if ENABLE_GPT and gpt_client:
+    if not (ENABLE_GPT and gpt_client):
+        return "AI functionality is disabled."
+    try:
         return gpt_client.call_gpt(query, zones)
-    return "AI functionality is disabled."
+    except Exception as e:
+        app.logger.error(f"GPT failed: {e}")
+        return "AI temporarily unavailable."
+
 
 def process_multi_stock_gpt_replies(period='2y'):
     replies = {}
