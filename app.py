@@ -48,12 +48,25 @@ if app.config.get('ENV') == 'production':
 # Session configuration
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './flask_session/'
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 # Secure cookie flags
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+if app.config.get('ENV') == 'production':
+    # in production (behind TLS) set Secure, HttpOnly, SameSite=Strict
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Strict',
+    )
+else:
+    # in development (HTTP) disable Secure so the browser will send it
+    app.config.update(
+        SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE=None,
+    )
+# ────────────────────────────────────────────────────────────────────────
 Session(app)
 
 # Logging configuration – always DEBUG to console during development
