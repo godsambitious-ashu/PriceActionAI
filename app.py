@@ -1,4 +1,4 @@
-# app.py – production-ready with proxy support, secure cookies, HSTS, and full routes
+# app.py – production-ready WSGI entrypoint
 import os
 import logging
 from flask import Flask, request, render_template, redirect, url_for, session, jsonify
@@ -56,9 +56,9 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
 Session(app)
 
-# Logging configuration
-log_level = logging.DEBUG if app.config['DEBUG'] else logging.INFO
-logging.basicConfig(level=log_level, format='%(asctime)s %(levelname)s:%(message)s')
+# Logging configuration – always DEBUG to console during development
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s')
+app.logger.setLevel(logging.DEBUG)
 
 # AI & Flowise flags
 HARDCODED_INTERVALS = ['3mo', '1mo', '1wk', '1d']
@@ -81,20 +81,31 @@ MULTI_STOCK_CODES = [
     'NIFTY MEDIA', 'NIFTY REALTY', 'NIFTY PSU BANK'
 ]
 
-# Helper: Call Flowise
 def call_flowise(query, zones):
     zones_context = ''.join(f"{k}: {v}\n" for k, v in zones.items())
     payload = {"question": f"{query}\n{zones_context}"}
+
+    # Log the outgoing request
+    logging.debug(f"Calling Flowise URL: {FLOWISE_API_URL}")
+    logging.debug(f"Flowise request payload: {payload}")
+
     try:
         response = requests.post(FLOWISE_API_URL, json=payload)
         response.raise_for_status()
         data = response.json()
-        return data.get('answer') or data.get('text', '')
+        logging.debug(f"Flowise raw response JSON: {data}")
+
+        # Try common fields in order
+        for key in ('answer', 'text', 'prediction', 'data', 'result'):
+            if key in data and data[key]:
+                logging.debug(f"Flowise using field `{key}` with value: {data[key]}")
+                return data[key]
+        # If nothing found, stringify entire response
+        return str(data)
     except Exception as e:
         logging.error(f"Error calling Flowise API: {e}")
         return "Error calling Flowise API."
 
-# Helper: unified AI call
 def call_ai(query, zones):
     if USE_FLOWISE:
         return call_flowise(query, zones)
@@ -102,7 +113,6 @@ def call_ai(query, zones):
         return gpt_client.call_gpt(query, zones)
     return "AI functionality is disabled."
 
-# Process multi-stock AI replies
 def process_multi_stock_gpt_replies(period='2y'):
     replies = {}
     for code in MULTI_STOCK_CODES:
@@ -111,6 +121,7 @@ def process_multi_stock_gpt_replies(period='2y'):
             (charts, dz_info, sz_info, adz, asz,
              monthly_zones, daily_zones,
              price, fresh1d, wk_zones) = dz.process_all_intervals(HARDCODED_INTERVALS, period)
+
             if USE_FLOWISE or (ENABLE_GPT and gpt_client):
                 zones = gpt_client.prepare_zones(
                     monthly_zones, fresh1d, price, wk_zones,
@@ -153,53 +164,79 @@ def index():
     if 'name' not in session or 'email' not in session:
         return redirect(url_for('user_info'))
     name, email = session['name'], session['email']
+
     if request.method == 'POST':
         stock_code = request.form['stock_code'].strip().upper()
         period = request.form['period']
         prev = session.get('current_stock')
         if prev and prev != stock_code:
             session['chat_history'] = []
+
+        # Main stock data
         dz = DemandZoneManager(stock_code)
-        index_code = dz.get_stock_codes_to_process(stock_code)
         (main_charts, main_dz, main_sz, main_adz, main_asz,
          main_monthly, main_daily, main_price,
          main_fresh, main_wk) = dz.process_all_intervals(HARDCODED_INTERVALS, period)
-        index_data = None
+
+        # Index stock data (for toggle)
+        index_charts = None
+        index_code = dz.get_stock_codes_to_process(stock_code)
         if index_code:
             dz2 = DemandZoneManager(index_code)
-            index_data = dz2.process_all_intervals(HARDCODED_INTERVALS, period)
+            (idx_charts, idx_dz, idx_sz, idx_adz, idx_asz,
+             idx_monthly, idx_daily, idx_price,
+             idx_fresh, idx_wk) = dz2.process_all_intervals(HARDCODED_INTERVALS, period)
+            index_charts = idx_charts
+
+        # AI zones & reply
         zones = {}
         ai_answer = None
         if USE_FLOWISE or (ENABLE_GPT and gpt_client):
             mz = gpt_client.prepare_zones(main_monthly, main_fresh, main_price, main_wk, "Main Stock Data")
             zones['main'] = mz
-            if index_code:
-                iz = gpt_client.prepare_zones(index_data[5], index_data[8], index_data[7], index_data[9], "Index Data")
+            if index_charts:
+                iz = gpt_client.prepare_zones(idx_monthly, idx_fresh, idx_price, idx_wk, "Index Data")
                 zones['index'] = iz
             ai_answer = call_ai(
-                f"Price {main_price}." + (f" Index {index_code} price {index_data[7]}.") if index_code else "",
+                f"Price {main_price}." + (f" Index {index_code} price {idx_price}.") if index_charts else "",
                 zones
             )
             session['gpt_auto'] = ai_answer
+
+        # Save session context
         session['current_stock'] = stock_code
         session['gpt_dto'] = zones
-        chat = session.get('chat_history')
+        chat = session.setdefault('chat_history', [])
         chat.append({
             'stock': stock_code,
             'time': datetime.utcnow().isoformat(),
             'query': f"Searched {stock_code} period {period}",
-            'answer': ai_answer or ''
+            'gpt_answer': ai_answer or ''
         })
         session['chat_history'] = chat
+
         return render_template(
-            'index.html', charts=main_charts, demand_zones_info=main_dz,
-            supply_zones_info=main_sz, name=name, email=email,
-            chat_history=chat, gpt_auto_answer=ai_answer,
-            index_code=index_code, index_data=index_data
+            'index.html',
+            charts=main_charts,
+            index_charts=index_charts,
+            demand_zones_info=main_dz,
+            supply_zones_info=main_sz,
+            name=name,
+            email=email,
+            chat_history=chat,
+            gpt_auto_answer=ai_answer,
+            index_code=index_code
         )
+
+    # GET
     return render_template(
-        'index.html', charts=None, demand_zones_info=None,
-        supply_zones_info=None, name=name, email=email,
+        'index.html',
+        charts=None,
+        index_charts=None,
+        demand_zones_info=None,
+        supply_zones_info=None,
+        name=name,
+        email=email,
         chat_history=session.get('chat_history', []),
         gpt_auto_answer=session.get('gpt_auto')
     )
@@ -232,6 +269,9 @@ def internal_error(e):
     logging.error(f"Internal server error: {e}")
     return render_template('500.html'), 500
 
-# Local development fallback
+# Expose for WSGI servers (Gunicorn, uWSGI, mod_wsgi…)
+application = app
+
+# Local development runner (do NOT use this in prod)
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=app.config['DEBUG'])
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
